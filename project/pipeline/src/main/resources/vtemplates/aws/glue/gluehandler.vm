@@ -1,0 +1,99 @@
+package $package;
+
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Base64;
+import java.util.Optional;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import io.jsonwebtoken.Jwts;
+
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.SQSBatchResponse;
+import com.amazonaws.services.lambda.runtime.events.SQSEvent;
+import com.amazonaws.services.lambda.runtime.events.SQSEvent.SQSMessage;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
+
+public class TriggerHandler implements RequestHandler<SQSEvent, SQSBatchResponse> {
+
+    @Override
+    public SQSBatchResponse handleRequest(SQSEvent event, Context context) {
+        context.getLogger().log("Pushing SQS event messages to cross-provider function");
+        List<SQSBatchResponse.BatchItemFailure> batchItemFailures = new ArrayList<SQSBatchResponse.BatchItemFailure>();
+        
+        String targetUrl = System.getenv("FUNCTION_URL_$targetFunction");
+        String secretKeyStr = System.getenv("JWT_KEY");
+        
+        // if failed to retrieve target function url, answer with full sqs batch failure
+        if (targetUrl == null) {
+            context.getLogger().log("Failed to retrieve target function url! Aborting...", LogLevel.ERROR);
+            for (SQSMessage message : event.getRecords()) {
+                batchItemFailures.add(new SQSBatchResponse.BatchItemFailure(message.getMessageId()));
+            }
+            return new SQSBatchResponse(batchItemFailures);
+        }
+        // if failed to retrieve jwt key, answer with message processing failure
+        if (secretKeyStr == null) {
+            context.getLogger().log("Failed to retrieve key for JWT signature! Aborting...", LogLevel.ERROR);
+            for (SQSMessage message : event.getRecords()) {
+                batchItemFailures.add(new SQSBatchResponse.BatchItemFailure(message.getMessageId()));
+            }
+            return new SQSBatchResponse(batchItemFailures);
+        }
+
+        
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        byte[] decodedKey = Base64.getDecoder().decode(secretKeyStr);
+        SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "HmacSHA256");
+
+        String jws = Jwts.builder().subject("$targetFunction").signWith(key).compact();
+
+        // for each message make a post request with the sqs message body to the target function 
+        for (SQSMessage message : event.getRecords()) {
+            HttpPost post = new HttpPost(targetUrl);
+            post.setEntity(new StringEntity(message.getBody()));
+            post.setHeader("authorization", "Bearer: " + jws);
+
+            PostResult result;
+            try {
+                context.getLogger().log("Posting message: " + message.getBody());
+                result = httpclient.execute(post, response -> {
+                    return new PostResult(response.getCode(), response.getReasonPhrase());
+                });
+            } catch (IOException e) {
+                context.getLogger().log("HTTP post error: " + e.getMessage(), LogLevel.ERROR);
+                batchItemFailures.add(new SQSBatchResponse.BatchItemFailure(message.getMessageId()));
+                continue;
+            }
+
+            context.getLogger().log("Got response.");
+
+            if (result.statusCode / 100 == 4 || result.statusCode / 100 == 5) {
+                context.getLogger().log(String.format(
+                    "HTTP post error: [%d] %s", result.statusCode, result.reasonPhrase), LogLevel.ERROR);
+                batchItemFailures.add(new SQSBatchResponse.BatchItemFailure(message.getMessageId()));
+            } else {
+                context.getLogger().log("HTTP post successful with code " + result.statusCode);
+            }
+        }
+
+        return new SQSBatchResponse(batchItemFailures);
+    }
+
+    class PostResult {
+        final int statusCode;
+        final String reasonPhrase;
+
+        PostResult(int statusCode, String reasonPhrase) {
+            this.statusCode = statusCode;
+            this.reasonPhrase = reasonPhrase;
+        }
+    }
+}

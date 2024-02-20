@@ -1,0 +1,65 @@
+package $package;
+
+import java.util.Base64;
+
+import org.apache.camel.EndpointInject;
+import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyRequestEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayProxyResponseEvent;
+import com.amazonaws.services.lambda.runtime.logging.LogLevel;
+
+import jakarta.inject.Inject;
+
+import ch.elca.rovl.functioncomponent.FunctionEndpoint;
+
+public class TriggerHandler implements RequestHandler
+        <APIGatewayProxyRequestEvent, APIGatewayProxyResponseEvent> {
+
+    @Inject
+    ProducerTemplate template;
+    @EndpointInject("function:trigger")
+    FunctionEndpoint dep;
+
+    @Override
+    public APIGatewayProxyResponseEvent handleRequest(
+            APIGatewayProxyRequestEvent event, Context context) {
+        context.getLogger().log("Lambda triggered! api gateway http event");
+        APIGatewayProxyResponseEvent response = new APIGatewayProxyResponseEvent();
+        response.setIsBase64Encoded(false);
+
+        String body = event.getBody();
+        if (event.getIsBase64Encoded()) {
+            context.getLogger().log("Decoding body from base64.");
+            body = new String(Base64.getDecoder().decode(body));
+        }
+        context.getLogger().log(String.format("event body: \'%s\'", body));
+
+        Exchange ex = dep.createExchange();
+        String httpMethod = event.getRequestContext().getHttpMethod();
+        ex.getIn().setHeader("http_method", httpMethod);
+        ex.getIn().setBody(body);
+        Exchange result = template.send(dep, ex);
+
+        if (result.isFailed()) {
+            Exception e = result.getException();
+            response.setStatusCode(500);
+            response.setBody(e.getMessage());
+            context.getLogger().log("Error in event processing!", LogLevel.ERROR);
+            context.getLogger().log(e.getMessage());
+        } else {
+            response.setStatusCode(200);
+            if (httpMethod.equals("PATCH") || httpMethod.equals("GET")) {
+                response.setBody(result.getMessage().getBody().toString());
+            } else {
+                ex.getIn().setBody("OK.");
+            }
+            context.getLogger().log("Event correctly processed.");
+        }
+
+        return response;
+    }
+}

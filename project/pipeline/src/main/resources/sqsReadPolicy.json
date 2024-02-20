@@ -1,0 +1,28 @@
+{ 
+    "Version": "2012-10-17", 
+    "Statement": [ 
+        { 
+            "Sid": "VisualEditor0", 
+            "Effect": "Allow", 
+            "Action": [ 
+                "sqs:StartMessageMoveTask",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueUrl",
+                "sqs:CancelMessageMoveTask",
+                "sqs:ListDeadLetterSourceQueues",
+                "sqs:ChangeMessageVisibility",
+                "sqs:ListMessageMoveTasks",
+                "sqs:ReceiveMessage",
+                "sqs:GetQueueAttributes",
+                "sqs:ListQueueTags"
+            ], 
+            "Resource": "%s" 
+        }, 
+        { 
+            "Sid": "VisualEditor1", 
+            "Effect": "Allow", 
+            "Action": "sqs:ListQueues",
+            "Resource": "*" 
+        } 
+    ] 
+}

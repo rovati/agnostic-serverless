@@ -1,0 +1,24 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "VisualEditor0",
+            "Effect": "Allow",
+            "Action": [
+                "sqs:StartMessageMoveTask",
+                "sqs:DeleteMessage",
+                "sqs:GetQueueUrl",
+                "sqs:CancelMessageMoveTask",
+                "sqs:ChangeMessageVisibility",
+                "sqs:SendMessage"
+            ],
+            "Resource": "%s"
+        },
+        {
+            "Sid": "VisualEditor1",
+            "Effect": "Allow",
+            "Action": "sqs:ListQueues",
+            "Resource": "*"
+        }
+    ]
+}

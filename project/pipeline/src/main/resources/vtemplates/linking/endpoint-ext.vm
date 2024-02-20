@@ -1,0 +1,82 @@
+$package
+
+import java.io.File;
+import java.io.FileWriter;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.camel.CamelContext;
+import org.apache.camel.impl.DefaultCamelContext;
+import org.apache.camel.model.ProcessorDefinition;
+import org.apache.camel.model.RouteDefinition;
+import org.apache.camel.model.ToDefinition;
+
+public class EndpointExtractor {
+    public static void main(String... args) throws Exception {
+        try (CamelContext cc = new DefaultCamelContext()) {
+            FunctionRoute fr = new FunctionRoute();
+            cc.addRoutes(fr);
+
+            File outputFile = new File("endpoints.txt");
+            FileWriter fw = new FileWriter(outputFile);
+
+            List<RouteDefinition> routes = fr.getRouteCollection().getRoutes();
+
+            Set<String> inputs = new HashSet<>();
+            Set<String> outputs = new HashSet<>();
+
+            // get all producer and consumer endpoints
+            for (RouteDefinition route : routes) {
+                String inputUri = route.getInput().getUri().split("\\?")[0];
+                inputs.add(inputUri);
+                for (ProcessorDefinition<?> pd : route.getOutputs()) {
+                    recurseAddOutput(outputs, pd);
+                }
+            }
+
+            // validate -> only one effective producer
+            List<String> endpointsToBeRemoved = new ArrayList<>();
+            for (String input : inputs) {
+                if (input.startsWith("direct") && outputs.contains(input)) {
+                    endpointsToBeRemoved.add(input);
+                }
+            }
+
+            for (String endpoint : endpointsToBeRemoved) {
+                inputs.remove(endpoint);
+                outputs.remove(endpoint);
+            }
+
+            if (inputs.size() > 1) {
+                fw.close();
+                throw new IllegalStateException(
+                        "Pipeline does not support a route builder with multiple input sources. Sources detected: "
+                                + inputs);
+            }
+
+            for (String input : inputs) {
+                fw.append("input=" + input + "\n");
+            }
+            for (String output : outputs) {
+                fw.append("output=" + output + "\n");
+            }
+
+            fw.close();
+        }
+    }
+
+    private static void recurseAddOutput(Set<String> outputs, ProcessorDefinition<?> pd) {
+        System.out.println(pd.getClass().getName());
+        if (pd instanceof ToDefinition) {
+            ToDefinition to = (ToDefinition) pd;
+            String outputUri = to.getUri().split("\\?")[0];
+            outputs.add(outputUri);
+        } else {
+            for (ProcessorDefinition<?> pdr : pd.getOutputs())
+            recurseAddOutput(outputs, pdr);
+        }
+    }
+}

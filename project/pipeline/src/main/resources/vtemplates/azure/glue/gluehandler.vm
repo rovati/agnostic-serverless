@@ -1,0 +1,87 @@
+package $package;
+
+import com.microsoft.azure.functions.ExecutionContext;
+import com.microsoft.azure.functions.annotation.FunctionName;
+import com.microsoft.azure.functions.annotation.ServiceBusQueueTrigger;
+
+import java.io.IOException;
+import java.util.logging.Level;
+import java.util.Base64;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import io.jsonwebtoken.Jwts;
+
+import org.apache.hc.client5.http.classic.methods.HttpPost;
+import org.apache.hc.client5.http.impl.classic.CloseableHttpClient;
+import org.apache.hc.client5.http.impl.classic.HttpClients;
+import org.apache.hc.core5.http.io.entity.StringEntity;
+
+
+public class TriggerHandler {
+    
+    @FunctionName("$functionName")
+    public void run(
+            @ServiceBusQueueTrigger(
+                name = "message",
+                queueName = "$queueName",
+                connection = "CONN_STRING_$queueName")
+            String message, final ExecutionContext context) {
+
+        context.getLogger().info("Java ServiceBus trigger processed a request.");
+
+        String targetUrl = System.getenv("FUNCTION_URL_$targetFunction");
+        String secretKeyStr = System.getenv("JWT_KEY");
+        
+        // if failed to retrieve target function url, answer with message processing failure
+        if (targetUrl == null) {
+            context.getLogger().log(Level.SEVERE, "Failed to retrieve target function url! Aborting...");
+            throw new RuntimeException("Failed to retrieve target function url");
+        }
+        // if failed to retrieve jwt key, answer with message processing failure
+        if (secretKeyStr == null) {
+            context.getLogger().log(Level.SEVERE, "Failed to retrieve key for JWT signature! Aborting...");
+            throw new RuntimeException("Failed to retrieve JWT key");
+        }
+        
+        CloseableHttpClient httpclient = HttpClients.createDefault();
+        byte[] decodedKey = Base64.getDecoder().decode(secretKeyStr);
+        SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "HmacSHA256");
+
+        // sign and generate token
+        String jws = Jwts.builder().subject("$targetFunction").signWith(key).compact();
+        
+        HttpPost post = new HttpPost(targetUrl);
+        post.setEntity(new StringEntity(message));
+        post.setHeader("authorization", "Bearer: " + jws);
+
+        PostResult result;
+        try {
+            result = httpclient.execute(post, response -> {
+                return new PostResult(response.getCode(), response.getReasonPhrase());
+            });
+        } catch (IOException e) {
+            context.getLogger().log(Level.SEVERE, "HTTP post error: " + e.getMessage());
+            throw new RuntimeException(e.getMessage());
+        }
+
+        if (result.statusCode / 100 == 4 || result.statusCode / 100 == 5) {
+            context.getLogger().log(Level.SEVERE, String.format(
+                "HTTP post error: [%d] %s", result.statusCode, result.reasonPhrase));
+            throw new RuntimeException("HTTP post error.");
+        } else {
+            context.getLogger().info("HTTP post successful with code " + result.statusCode);
+        }
+        
+    }
+
+    class PostResult {
+        final int statusCode;
+        final String reasonPhrase;
+
+        PostResult(int statusCode, String reasonPhrase) {
+            this.statusCode = statusCode;
+            this.reasonPhrase = reasonPhrase;
+        }
+    }
+}

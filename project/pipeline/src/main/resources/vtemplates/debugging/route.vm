@@ -1,0 +1,12 @@
+package org.acme;
+
+import io.quarkus.agroal.DataSource;
+import jakarta.inject.Inject;
+
+public class MyRoute {
+
+    // trigger Dev Services
+    @Inject
+    DataSource datasource;
+    
+}

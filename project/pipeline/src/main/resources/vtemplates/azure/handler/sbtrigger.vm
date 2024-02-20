@@ -1,0 +1,96 @@
+package $package;
+
+import com.microsoft.azure.functions.ExecutionContext;
+import com.microsoft.azure.functions.annotation.FunctionName;
+import com.microsoft.azure.functions.annotation.ServiceBusQueueTrigger;
+
+import java.util.logging.Level;
+import java.util.HashMap;
+import java.util.Map;
+
+import java.io.IOException;
+
+import org.apache.camel.CamelContext;
+import org.apache.camel.Exchange;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.component.properties.PropertiesComponent;
+import org.apache.camel.impl.DefaultCamelContext;
+
+import ch.elca.rovl.queuecomponent.QueueEndpoint;
+
+import com.fasterxml.jackson.jr.ob.JSON;
+import com.fasterxml.jackson.jr.ob.JSONObjectException;
+
+public class TriggerHandler {
+
+    /**
+     * This function listens to the queue $queueName on azure
+     * @throws Exception
+     */
+    @FunctionName("$functionName")
+    public void run(
+            @ServiceBusQueueTrigger(
+                name = "message",
+                queueName = "$queueName",
+                connection = "CONN_STRING_$queueName")
+            String message, final ExecutionContext context) throws Exception {
+        context.getLogger().info("Java ServiceBus trigger processed a request.");
+
+        // create and start camel context
+        try(CamelContext camelContext = new DefaultCamelContext()){
+            // set up camel context
+            PropertiesComponent pc = new PropertiesComponent();
+            pc.setLocation("classpath:application.properties");
+            camelContext.setPropertiesComponent(pc);
+            camelContext.addRoutes(new FunctionRoute());
+            camelContext.start();
+
+            // create local endpoint to push exchange to route
+            QueueEndpoint endpoint = camelContext.getEndpoint("queue://$queueName", QueueEndpoint.class);
+            endpoint.setUseDirectProducer(true);
+
+            // create exchange with request content
+            Exchange exchange = endpoint.createExchange();
+            try {
+                deserializeExchange(exchange, message);
+            } catch(IOException e) {
+                context.getLogger().log(Level.SEVERE, "Failed to deserialized Exchange");
+                context.getLogger().log(Level.SEVERE, e.getMessage());
+                camelContext.stop();
+                return;
+            }
+
+            // trigger camel route
+            ProducerTemplate template = camelContext.createProducerTemplate();
+            Exchange out = template.send(endpoint, exchange);
+
+            // if exchange processing has exception
+            if (out.isFailed()) {
+                Exception e = out.getException();
+                context.getLogger().log(Level.SEVERE, e.getMessage());
+            }
+
+            // shutdown camel context
+            camelContext.stop();
+        }
+
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void deserializeExchange(Exchange ex, String serialized) throws JSONObjectException, IOException  {
+        Map<String, Object> content = JSON.std.with(JSON.Feature.PRETTY_PRINT_OUTPUT)
+            .beanFrom(HashMap.class, serialized);
+
+        String body = (String) content.get("body");
+        Map<String,Object> properties = (Map<String,Object>) content.get("properties");
+        Map<String,Object> headers = (Map<String,Object>) content.get("headers");
+
+        ex.getIn().setBody(body);
+        for (String key : properties.keySet()) {
+            ex.setProperty(key, properties.get(key));
+        }
+        for (String key : headers.keySet()) {
+            ex.getIn().setHeader(key, headers.get(key));
+        }
+    }
+}
