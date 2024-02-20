@@ -81,7 +81,7 @@
             <goal>java</goal>
           </goals>
           <configuration>
-            <mainClass>ch.elca.rovl.App</mainClass>
+            <mainClass>org.acme.App</mainClass>
             <cleanupDaemonThreads>false</cleanupDaemonThreads>
           </configuration>
         </plugin>

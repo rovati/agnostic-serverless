@@ -1,4 +1,4 @@
-package ch.elca.rovl;
+package org.acme;
 
 import org.apache.camel.builder.RouteBuilder;
 

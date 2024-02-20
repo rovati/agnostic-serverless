@@ -1,4 +1,4 @@
-package ch.elca.rovl.layout;
+package org.acme.layout;
 
 import ch.elca.rovl.dsl.PlatformResourcesDefinition;
 import ch.elca.rovl.dsl.api.function.models.FunctionRuntime;
