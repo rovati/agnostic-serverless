@@ -1,0 +1,4 @@
+*/.vscode
+*/target/
+resources-config/generated/
+resources-config/deployment-info/
