@@ -1,7 +1,7 @@
 package ch.elca.rovl.dsl.pipeline.util;
 
 /**
- * Enum of possible target cloud providers.
+ * Enum of possible target platform providers.
  */
 public enum Provider {
     AZURE("Azure"),

@@ -10,12 +10,17 @@ import ch.elca.rovl.dsl.resource.database.WorkloadType;
 import ch.elca.rovl.dsl.resource.database.Database.DatabaseConfigType;
 import ch.elca.rovl.dsl.resource.database.Database.DatabaseSize;
 
+/**
+ * Builder for a database resource.
+ */
 public class FluentDatabaseBuilder implements FluentResourceBuilder {
 
+    // required values
     String name;
     String rootUserName;
     String rootUserPwd;
     DatabaseEngine engine;
+    // optional values
     WorkloadType workload;
     int sizeGB = 0; // NOTE if 0, use provider min. if -1, user provider max
 
@@ -60,19 +65,20 @@ public class FluentDatabaseBuilder implements FluentResourceBuilder {
 
         if (rootUserName == null || rootUserPwd == null)
             throw new IllegalStateException(String.format(
-                "Database '%s' is missing root user information.", name));
+                    "Database '%s' is missing root user information.", name));
 
         if (engine == null)
             throw new IllegalStateException(String.format(
-                "Database '%s' is missing the mandatory field 'engine'.", name));
+                    "Database '%s' is missing the mandatory field 'engine'.", name));
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Database build() {
         Database db = new Database(name, rootUserName, rootUserPwd, engine);
-        Map<DatabaseConfigType,Object> config = new HashMap<>();
+        Map<DatabaseConfigType, Object> config = new HashMap<>();
 
+        // register optinal config values in map 
         if (workload != null)
             config.put(DatabaseConfigType.WORKLOAD_TYPE, workload);
 
@@ -81,5 +87,5 @@ public class FluentDatabaseBuilder implements FluentResourceBuilder {
         db.addConfig(config);
         return db;
     }
-    
+
 }

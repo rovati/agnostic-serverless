@@ -106,7 +106,7 @@ public class RdsHelper {
 
             LOG.info(String.format("Database '%s' already exists, skipping provisioning.", db.getName()));
         } catch (DbInstanceNotFoundException e) {
-            // TODO change settings based on db config
+            // TODO config support: change settings based on db config
             // create db
             CreateDbInstanceResponse response = rdsClient.createDBInstance(
                     // use burstable instance -> free tier
@@ -128,7 +128,6 @@ public class RdsHelper {
         return result;
     }
 
-    // TODO change signature an create reader + writer roles
     /**
      * Returns access roles to the given database
      * 
@@ -173,7 +172,7 @@ public class RdsHelper {
                     instanceReady = true;
                     dbEndpoint = instance.endpoint().address();
                 } else {
-                    // TODO review
+                    // TODO optimization: exponential wait
                     Thread.sleep(20000);
                 }
             }

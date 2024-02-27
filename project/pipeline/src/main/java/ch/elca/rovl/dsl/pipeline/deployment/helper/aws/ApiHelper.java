@@ -93,7 +93,6 @@ public class ApiHelper {
                     refreshApis(true);
                     succeeded = true;
                 } catch (TooManyRequestsException e) {
-                    LOG.warn("Too Many Requests for createRestApi, attempt " + tries);
                     ex = e;
                     tries++;
 
@@ -164,7 +163,7 @@ public class ApiHelper {
                         .resourceMethods().keySet();
 
                 // create method if missing
-                // TODO remove unnecessary methods
+                // TODO platform cleanup: remove unnecessary methods
                 if (!existingMethods.contains("ANY")) {
                     List<String> resourceMethods = new ArrayList<>();
 
@@ -186,7 +185,6 @@ public class ApiHelper {
                 }
 
         } catch (TooManyRequestsException e) {
-                LOG.warn("Too Many Requests for putMethod, attempt " + tries);
                 ex = e;
                 tries++;
 
@@ -199,7 +197,6 @@ public class ApiHelper {
 
     }
 
-    // TODO max number of stages exception
     private String createDeployment(String stageName, String restId) throws InterruptedException {
         CreateDeploymentResponse response = null;
 
@@ -212,7 +209,6 @@ public class ApiHelper {
                         .restApiId(restId).stageName(stageName).build());
                 succeeded = true;
             } catch (TooManyRequestsException e) {
-                LOG.warn("Too Many Requests for createDeployment, attempt " + tries);
                 ex = e;
                 tries++;
 
@@ -238,7 +234,6 @@ public class ApiHelper {
                         .getDeployments(GetDeploymentsRequest.builder().restApiId(restId).build());
                 succeeded = true;
             } catch (TooManyRequestsException e) {
-                LOG.warn("Too Many Requests forgetDeployments, attempt " + tries);
                 ex = e;
                 tries++;
 
@@ -273,7 +268,6 @@ public class ApiHelper {
 
                 succeeded = true;
             } catch (TooManyRequestsException e) {
-                LOG.warn("Too Many Requests for getStages / deleteStage, attempt " + tries);
                 ex = e;
                 tries++;
 

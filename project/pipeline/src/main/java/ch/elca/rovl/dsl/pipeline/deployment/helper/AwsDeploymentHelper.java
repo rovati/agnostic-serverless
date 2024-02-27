@@ -101,7 +101,6 @@ public class AwsDeploymentHelper implements DeploymentHelper {
                         ResourceLoader.load("lambdaCloudWatchPolicy.json", LOG));
     }
 
-    // TODO create roles in db, create tables in db, support multiple dbs in same server
     /**
      * Deploys a database on AWS using the SDK and AWS CLI. Returns the database pipeline object
      * containing access info for the database.

@@ -127,7 +127,6 @@ public class AzureDeploymentHelper implements DeploymentHelper {
             // LOG.info("Triggering creation of namespace and queue...");
             ns = serviceBusHelper.createNamespaceAndQueue(namespace, queue.getName());
         } else {
-            LOG.info("Namespace already exists. Creating queue if missing...");
             ns = serviceBusHelper.createQueueIfMissing(namespace, queue.getName());
         }
 

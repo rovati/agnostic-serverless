@@ -3,7 +3,26 @@ package ch.elca.rovl.dsl.pipeline.templating;
 import java.util.Arrays;
 import java.util.List;
 
+import ch.elca.rovl.dsl.pipeline.util.Constants;
+
 public class TemplatingConstants {
+
+    /**
+     * Directory containing the Velocity templates
+     */
+    public static final String TEMPLATES_DIR = "src/main/resources/vtemplates";
+    /**
+     * Path to directory where all tempalting generated data is written to
+     */
+    public static final String OUTPUT_DIR = Constants.GENERATED_DIR + "templating/functions/";
+    /**
+     * Package name for generated function projects
+     * <p>
+     * NOTE the package extracted from the function handler config should be used instead 
+     */
+    public static final String PACKAGE_NAME = "ch.elca.rovl";
+
+    // maven dependency tags
 
     public static final List<String> JDBC_TAG = Arrays.asList("\t<dependency>", "\t\t<groupId>org.apache.camel.quarkus</groupId>",
                 "\t\t<artifactId>camel-quarkus-jdbc</artifactId>", "\t\t<version>3.6.0</version>",
@@ -32,13 +51,19 @@ public class TemplatingConstants {
                 "\t\t<scope>runtime</scope>",
                 "\t</dependency>");
 
+    // configuration property names
+
     public static final String DATABASE_PROPERTY = "database.%s.provider=%s\n";
     public static final String QUEUE_PROPERTY = "queue.%s.provider=%s\n";
     public static final String FUNCTION_PROPERTY = "function.%s.provider=%s\n";
 
+    // file names
+
     public static final String POM_NAME = "pom.xml";
     public static final String APP_PROPERTIES_NAME = "application.properties";
     public static final String HANDLER_NAME = "TriggerHandler.java";
+
+    // code blocks to be merged in templates
 
     public static final String AWS_DB_IMPORTS = """
         import org.apache.commons.dbcp.BasicDataSource;

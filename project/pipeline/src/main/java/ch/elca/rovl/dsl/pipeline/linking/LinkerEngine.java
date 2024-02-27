@@ -27,28 +27,26 @@ import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslFunction;
 import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslQueue;
 import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslResource;
 import ch.elca.rovl.dsl.pipeline.linking.helper.DeducerHelper;
+import ch.elca.rovl.dsl.pipeline.linking.helper.ProviderParser;
 import ch.elca.rovl.dsl.pipeline.linking.model.FunctionConnections;
 import ch.elca.rovl.dsl.pipeline.linking.model.Link;
 import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedDatabase;
 import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedFunction;
 import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedQueue;
 import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedResource;
-import ch.elca.rovl.dsl.pipeline.util.Constants;
 import ch.elca.rovl.dsl.pipeline.util.Provider;
-import ch.elca.rovl.dsl.pipeline.util.ProviderParser;
 import ch.elca.rovl.dsl.pipeline.util.ResourceType;
 
 /**
- * Engine that takes care of creating links between the givne resources. It matches each resource to
- * its chosen target provider, and then deduces links between the resources from the computing logic
+ * Engine that takes care of creating links between the given resources. It
+ * matches each resource to
+ * its chosen target provider, and then deduces links between the resources from
+ * the computing logic
  * of the functions.
  */
 public final class LinkerEngine {
 
     private static Logger LOG = LoggerFactory.getLogger("Links");
-
-    final String deductionDir = Constants.GENERATED_DIR + "linking/link_deduction/";
-    final String routeBuilderName = "FunctionRoute.java";
 
     final DeducerHelper deducerHelper;
     final ProviderParser providerParser;
@@ -63,17 +61,22 @@ public final class LinkerEngine {
     final VelocityEngine engine;
     final VelocityContext context;
 
-    // NOTE when number of supported resources grows, just pass a single map {name -> dslresource}
+    // NOTE when number of supported resources grows, just pass a single map {name
+    // -> dslresource}
     /**
      * LinkerEngine constructor.
      * 
-     * @param providersFile path to the file containing the chosen target provider for each resource
-     * @param nameToFunction map {functionName -> function} containing all functions parsed at the
-     *        previous pipeline step
-     * @param nameToQueue map {queueName -> queue} containing all queues parsed at the previous
-     *        pipeline step
-     * @param nameToDatabase map {databaseName -> database} containing all databases parsed at the
-     *        previous pipeline step
+     * @param providersFile  path to the file containing the chosen target provider
+     *                       for each resource
+     * @param nameToFunction map {functionName -> function} containing all functions
+     *                       parsed at the
+     *                       previous pipeline step
+     * @param nameToQueue    map {queueName -> queue} containing all queues parsed
+     *                       at the previous
+     *                       pipeline step
+     * @param nameToDatabase map {databaseName -> database} containing all databases
+     *                       parsed at the
+     *                       previous pipeline step
      * @throws URISyntaxException if {@code providersFile} is not a valid URI
      */
     public LinkerEngine(String providersFile, Map<String, DslFunction> nameToFunction,
@@ -87,6 +90,7 @@ public final class LinkerEngine {
         this.links = Collections.synchronizedList(new ArrayList<>());
         this.linkedResources = new HashMap<>();
 
+        // init templating engine for deduction
         engine = new VelocityEngine();
         engine.setProperty(RuntimeConstants.RESOURCE_LOADERS, "classpath");
         engine.setProperty("resource.loader.classpath.class",
@@ -94,7 +98,8 @@ public final class LinkerEngine {
         engine.init();
         context = new VelocityContext();
 
-        this.deducerHelper = new DeducerHelper(deductionDir, routeBuilderName, context, engine);
+        // init helper
+        this.deducerHelper = new DeducerHelper(context, engine);
     }
 
     /**
@@ -104,7 +109,7 @@ public final class LinkerEngine {
      */
     public void deduceLinks() throws IOException {
         // create temp folder
-        File tmp = new File(deductionDir);
+        File tmp = new File(LinkingConstants.DEDUCTION_LOGS_DIR);
         if (tmp.exists()) {
             // clean
             FileUtils.cleanDirectory(tmp);
@@ -126,6 +131,7 @@ public final class LinkerEngine {
 
                 deductionTasks.put(executor.submit(() -> {
                     String rootDir;
+                    // copy function project
                     try {
                         rootDir = deducerHelper.copyProject(fn.getFunction());
                     } catch (IOException e) {
@@ -133,6 +139,8 @@ public final class LinkerEngine {
                         e.printStackTrace();
                         return;
                     }
+                    // extend function project with class to extract endpoints from Camel route
+                    // definition
                     try {
                         deducerHelper.addEndpointExtractor(rootDir, fn.getFunction().getHandler());
                     } catch (IOException e) {
@@ -147,7 +155,9 @@ public final class LinkerEngine {
                         e.printStackTrace();
                         return;
                     }
+                    // run endpoint extractor file
                     File endpointsFile = deducerHelper.extractEndpoints(rootDir, fn.getName());
+                    // create links from output fo endpoint extractor
                     try {
                         links.addAll(deducerHelper.createLinks(fn.getName(), endpointsFile));
                     } catch (IOException e) {
@@ -180,14 +190,13 @@ public final class LinkerEngine {
             throw new IllegalStateException("Link deduction of some functions failed.");
         }
 
+        // register inputs and outputs of the function
         registerFunctionConnections();
-
     }
 
-    // TODO change to stack up all resources without provider, and throw once
     /**
-     * Matches each resource from the previous pipeline step to the target provider chosen by the
-     * user.
+     * Matches each resource from the previous pipeline step to the target provider
+     * chosen by the user.
      * 
      * @throws IllegalStateException
      * @throws IOException
@@ -200,13 +209,14 @@ public final class LinkerEngine {
             for (DslFunction f : nameToFunction.values()) {
                 linkedResources.put(f.getName(), new LinkedFunction(f, Provider.DEBUG));
             }
-    
+
             for (DslDatabase db : nameToDatabase.values()) {
                 linkedResources.put(db.getName(), new LinkedDatabase(db, Provider.DEBUG));
             }
             return;
         }
 
+        // parse choices of the user
         providerParser.parse();
         Map<DslResource, Provider> providerLinked = linkToProvider();
 
@@ -223,9 +233,10 @@ public final class LinkerEngine {
     }
 
     /**
-     * For each function registers the input and output resources of its links. Returns a map
-     * containing all the resources parsed at the previous pipeline step extended with their chosen
-     * target provider and the resources they are linked to.
+     * For each function registers the input and output resources of its links.
+     * Returns a map containing all the resources parsed at the previous pipeline
+     * step extended with their chosen target provider and the resources they are
+     * linked to.
      * 
      * @return map {resourceName -> resource} containing all linked resources
      */
@@ -236,12 +247,13 @@ public final class LinkerEngine {
     }
 
     /**
-     * For each deduced link it registers input and output resources of each function.
+     * For each deduced link it registers input and output resources of each
+     * function.
      */
     private void registerFunctionConnections() {
         for (Link l : links) {
-            // if the in resource of the link is a function, register the out resource of the link
-            // as an output resource of the fucntion
+            // if the in resource of the link is a function, register the out resource of
+            // the link as an output resource of the fucntion
             if (l.getInputType() == ResourceType.FUNCTION) {
                 DslResource outResource;
                 switch (l.getOutputType()) {
@@ -260,8 +272,8 @@ public final class LinkerEngine {
 
                 connections.registerOutput(l.getInput(), outResource);
             }
-            // if the out resource of the link is a function, register the in resource of the link
-            // as an input resource of the fucntion
+            // if the out resource of the link is a function, register the in resource of
+            // the link as an input resource of the fucntion
             if (l.getOutputType() == ResourceType.FUNCTION) {
                 DslResource inResource;
                 switch (l.getInputType()) {
@@ -281,8 +293,8 @@ public final class LinkerEngine {
     }
 
     /**
-     * For each resource parsed at the previous pipeline step it reads and registers its target
-     * provider chosen by the user.
+     * For each resource parsed at the previous pipeline step it reads and registers
+     * its target provider chosen by the user.
      * 
      * @return a map containing all resources mapped to their chosen provider
      */
@@ -321,7 +333,8 @@ public final class LinkerEngine {
     }
 
     /**
-     * For each function it validates its input and then adds them to the function pipeline object.
+     * For each function it validates its input and then adds them to the function
+     * pipeline object.
      * Inputs of a functions are valid if one of the following cases is met:
      * <ul>
      * <li>there is no input resource</li>
@@ -367,9 +380,9 @@ public final class LinkerEngine {
      * Validates the inputs of a function.
      * 
      * @param function function
-     * @param fns list of input functions
-     * @param qs list of input queues
-     * @param apis list of input apis
+     * @param fns      list of input functions
+     * @param qs       list of input queues
+     * @param apis     list of input apis
      */
     private void validateFunctionInputs(LinkedFunction function, List<DslFunction> fns,
             List<DslQueue> qs) {
@@ -407,14 +420,16 @@ public final class LinkerEngine {
     }
 
     /**
-     * Due to limitations in the AWS sandbox used for development, if a function is linked to a
-     * database on AWS also the funciton has to be on AWS. This call validates this condition.
+     * Due to limitations in the AWS sandbox used for development, if a function is
+     * linked to a database on AWS also the funciton has to be on AWS. This call
+     * validates this condition.
      * 
      * @param fn
      * @param output
      */
     private void validateAWSLink(LinkedResource fn, LinkedResource output) {
-        if (output instanceof LinkedDatabase && output.getProvider() == Provider.AWS && fn.getProvider() != Provider.AWS) {
+        if (output instanceof LinkedDatabase && output.getProvider() == Provider.AWS
+                && fn.getProvider() != Provider.AWS) {
             throw new UnsupportedOperationException(String.format(
                     "Function '%s' has to be deployed on AWS to be able to interact with database '%s' on AWS.",
                     fn.getName(), output.getName()));

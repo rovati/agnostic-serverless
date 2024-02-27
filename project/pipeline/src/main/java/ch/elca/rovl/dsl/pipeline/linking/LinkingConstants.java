@@ -1,0 +1,8 @@
+package ch.elca.rovl.dsl.pipeline.linking;
+
+public class LinkingConstants {
+    /**
+     * Path to the directory where logs of link deduction are written to.
+     */
+    public static final String DEDUCTION_LOGS_DIR = "linking/link_deduction/";
+}

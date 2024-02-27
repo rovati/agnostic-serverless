@@ -27,19 +27,24 @@ import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedResource;
 import ch.elca.rovl.dsl.pipeline.util.Constants;
 import ch.elca.rovl.dsl.pipeline.util.TriggerType;
 
-public class DebuggingEngine {
+/**
+ * Engine used to generate configuration and provision local databases necessary
+ * for debugging.
+ */
+public final class DebuggingEngine {
     private static final Logger LOG = LoggerFactory.getLogger("Debug Config");
+    // range for localhost ports
     private static final int MIN_PORT_NUMBER = 49152;
     private static final int MAX_PORT_NUMBER = 65534;
 
-    final Random rng = new Random();
+    private final Random rng = new Random();
 
-    final List<LinkedFunction> functions;
-    final List<LinkedDatabase> databases;
-    final Map<String, String> dummyProjects;
-    final Map<String, Integer> ports;
+    private final List<LinkedFunction> functions;
+    private final List<LinkedDatabase> databases;
+    private final Map<String, String> dummyProjects;
+    private final Map<String, Integer> ports;
 
-    final DummyDBHelper dbHelper;
+    private final DummyDBHelper dbHelper;
 
     public DebuggingEngine(Map<String, LinkedResource> linkedResource) {
         this.functions = new ArrayList<>();
@@ -48,6 +53,7 @@ public class DebuggingEngine {
         this.ports = new HashMap<>();
         this.dbHelper = new DummyDBHelper();
 
+        // get functions and databases in the application
         for (LinkedResource lr : linkedResource.values()) {
             if (lr instanceof LinkedFunction) {
                 functions.add((LinkedFunction) lr);
@@ -58,6 +64,9 @@ public class DebuggingEngine {
         }
     }
 
+    /**
+     * Assigns a localhost port to each application database.
+     */
     public void choosePortForDatabases() {
         List<Integer> selectedPorts = new ArrayList<>();
 
@@ -67,6 +76,8 @@ public class DebuggingEngine {
                 port = rng.nextInt(MAX_PORT_NUMBER - MIN_PORT_NUMBER) + MIN_PORT_NUMBER;
             } while (!isPortAvailable(port) && !selectedPorts.contains(port));
 
+            // create dummy quarkus project needing a database, so that running it will
+            // instruct Dev Services to provision the db
             try {
                 dummyProjects.put(db.getName(), dbHelper.createDummyProject(db.getName(), port));
             } catch (IOException e) {
@@ -76,23 +87,30 @@ public class DebuggingEngine {
         }
     }
 
+    /**
+     * Provisions locally the application databases.
+     */
     public void startDummyDatabases() {
+        // parallel exec
         ExecutorService executor = Executors.newCachedThreadPool();
-
         Map<Future<?>, String> startupTasks = new HashMap<>();
 
         for (String dbName : dummyProjects.keySet()) {
             startupTasks.put(executor.submit(() -> {
+                // use quarkus dev command to trigger Dev Services
                 String cmd = " & mvn quarkus:dev -Ddebug=false";
                 Process p = null;
                 try {
                     ProcessBuilder pb = new ProcessBuilder("cmd", "/c", " cd " + dummyProjects.get(dbName), cmd);
                     // write output to log file
                     pb.redirectOutput(new File(Constants.LOGS_DIR + "start-dummy-db-" + dbName + ".txt"));
-                    
+
                     // run command
                     p = pb.start();
 
+                    // NOTE this is very bad. Hot reload of Quarkus does not let us udnerstand in an
+                    // easy way when the database have actually been provision, so we wait a bit and
+                    // hope it happened.
                     p.waitFor(30, TimeUnit.SECONDS);
                     p.destroyForcibly();
                 } catch (IOException | InterruptedException e) {
@@ -126,6 +144,12 @@ public class DebuggingEngine {
         }
     }
 
+    /**
+     * For each function, generate configuration data needed by the Camel componets
+     * to work in debug mode.
+     * 
+     * @throws IOException
+     */
     public void writeDebugConfig() throws IOException {
         // write config files to each functton project with links and function name
         for (LinkedFunction fn : functions) {
@@ -161,9 +185,13 @@ public class DebuggingEngine {
             reader.close();
 
             // add config
+            // use comment blocks to define start and finish of generated section
+            // NOTE we need the generated config to be picked up by Quarkus, and
+            // Quarkus looks for it only in application.properties (?)
             modifiedContent.add("# GENERATED - DO NOT EDIT");
             modifiedContent.add("function.name=" + fn.getName());
 
+            // set what triggers the function: REST calls or other functions
             String trigger;
             if (fn.getTriggerType() == TriggerType.HTTP) {
                 if (fn.getTrigger() != null) // rest trigger
@@ -175,6 +203,7 @@ public class DebuggingEngine {
             }
             modifiedContent.add("function.trigger=" + trigger);
 
+            // provide configuration to connect to databases
             if (fn.hasDatabaseOutput()) {
                 for (LinkedResource lr : fn.getOutput()) {
                     if (lr instanceof LinkedDatabase) {

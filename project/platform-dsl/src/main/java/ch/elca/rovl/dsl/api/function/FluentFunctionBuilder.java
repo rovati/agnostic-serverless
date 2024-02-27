@@ -86,9 +86,7 @@ public class FluentFunctionBuilder implements FluentResourceBuilder {
     public Function build() {
         Function fn = new Function(name, pathToProject, runtime, handler);
 
-        if (execTimeoutSeconds > 0) {
-            fn.addConfig(FunctionConfigType.EXEC_TIMEOUT, execTimeoutSeconds);
-        }
+        fn.addConfig(FunctionConfigType.EXEC_TIMEOUT, execTimeoutSeconds);
 
         if (trigger != null) {
             fn.addConfig(FunctionConfigType.TRIGGER, trigger);

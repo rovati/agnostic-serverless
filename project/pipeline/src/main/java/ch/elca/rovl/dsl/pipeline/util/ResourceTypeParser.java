@@ -17,8 +17,6 @@ public class ResourceTypeParser {
                 return ResourceType.FUNCTION;
             case "queue":
                 return ResourceType.QUEUE;
-            // TODO eliminate one of the two cases when decided which logic to support for dbs
-            case "jdbc":
             case "database":
                 return ResourceType.DATABASE;
             default:

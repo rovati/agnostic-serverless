@@ -22,20 +22,16 @@ public final class TemplatingHelperFactory {
     final VelocityEngine engine;
     final VelocityContext context;
     final String outputDir;
-    final String packageName;
     final ResourceNameMemory memory;
 
     /**
      * Factory constructor.
      * 
      * @param outputDir root directory where the generated projects are placed
-     * @param packageName name of the functions package
      * @param memory data strcture containing names of resources that are already deployed
      */
-    public TemplatingHelperFactory(String outputDir, String packageName,
-            ResourceNameMemory memory) {
+    public TemplatingHelperFactory(String outputDir, ResourceNameMemory memory) {
         this.outputDir = outputDir;
-        this.packageName = packageName;
         this.memory = memory;
         this.helpers = new HashMap<>();
 
@@ -47,7 +43,7 @@ public final class TemplatingHelperFactory {
         engine.init();
 
         context = new VelocityContext();
-        context.put("package", packageName);
+        context.put("package", TemplatingConstants.PACKAGE_NAME);
     }
 
     /**
@@ -62,12 +58,10 @@ public final class TemplatingHelperFactory {
         if (helper == null) {
             switch (provider) {
                 case AZURE:
-                    helper = new AzureTemplatingHelper(engine, context, outputDir, packageName,
-                            memory);
+                    helper = new AzureTemplatingHelper(engine, context, outputDir, memory);
                     break;
                 case AWS:
-                    helper = new AwsTemplatingHelper(engine, context, outputDir, packageName,
-                            memory);
+                    helper = new AwsTemplatingHelper(engine, context, outputDir, memory);
                     break;
                 default:
                     throw new IllegalArgumentException("Provider is not supported");

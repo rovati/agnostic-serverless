@@ -20,7 +20,6 @@ import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableDatabase;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableFunction;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableQueue;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableResource;
-import ch.elca.rovl.dsl.pipeline.util.Constants;
 import ch.elca.rovl.dsl.pipeline.util.IdGenerator;
 
 /**
@@ -30,10 +29,6 @@ import ch.elca.rovl.dsl.pipeline.util.IdGenerator;
 public final class TemplatingEngine {
 
     static final Logger LOG = LoggerFactory.getLogger("Templates gen");
-
-    final String templatesDir = "src/main/resources/vtemplates";
-    final String outputDir = Constants.GENERATED_DIR + "templating/functions/";
-    final String packageName = "ch.elca.rovl";
 
     final TemplatingHelperFactory helperFactory;
     final Map<String, LinkedResource> linkedResouces;
@@ -49,11 +44,11 @@ public final class TemplatingEngine {
     public TemplatingEngine(Map<String, LinkedResource> linkedResources) throws IOException {
         this.linkedResouces = linkedResources;
         this.resourceMemory = new ResourceNameMemory();
-        this.helperFactory = new TemplatingHelperFactory(outputDir, packageName, resourceMemory);
+        this.helperFactory = new TemplatingHelperFactory(TemplatingConstants.OUTPUT_DIR, resourceMemory);
         this.rng = new Random();
 
         // create generated dir
-        File out = new File(outputDir);
+        File out = new File(TemplatingConstants.OUTPUT_DIR);
         if (out.exists()) {
             // clean
             FileUtils.cleanDirectory(out);
@@ -171,7 +166,7 @@ public final class TemplatingEngine {
             // if glue is required, generate the additional function project to be deployed on the
             // same provider as the input queue
             if (fn.requiresGlue()) {
-                LOG.info(String.format("Function requires glue..."));
+                LOG.info(String.format("Function '%s' requires glue...", fn.getName()));
                 deployableFunctions.add(helperFactory.getHelper(fn.getInputQueue().getProvider())
                         .generateGlue(dfn));
             }

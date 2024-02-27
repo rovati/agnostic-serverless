@@ -12,22 +12,25 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 import org.apache.camel.spi.annotations.Component;
 import org.apache.camel.support.DefaultComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import ch.elca.rovl.functioncomponent.util.PropertyResolver;
 import ch.elca.rovl.functioncomponent.util.TargetProvider;
 import ch.elca.rovl.functioncomponent.util.TriggerType;
 
+/**
+ * Camel component for function resources.
+ * <p>
+ * The endpoint URI is specified as "function:functionName". The consumer only
+ * supports "trigger" as name.
+ */
 @Component("function")
 public class FunctionComponent extends DefaultComponent {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FunctionComponent.class);
+    // ports range used for local debugging
     private static final int MIN_PORT_NUMBER = 49152;
     private static final int MAX_PORT_NUMBER = 65534;
 
-    final Map<String, DirectFunctionConsumer> consumers = new HashMap<>();
-    final Random rng = new Random();
+    private final Map<String, DirectFunctionConsumer> consumers = new HashMap<>();
+    private final Random rng = new Random();
 
     public FunctionComponent() {
     }
@@ -36,55 +39,65 @@ public class FunctionComponent extends DefaultComponent {
         super(context);
     }
 
+    /**
+     * Creates an ednpoint for the given function. If no property indicating the
+     * platform of the function exists, the endpoint is used for local debugging.
+     */
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        LOG.info("Creating function edpoint with name " + remaining + " and parameters " + parameters.toString());
-
+        // get property indicating on which platform the function is provisioned on
         String providerProperty = String.format("function.%s.provider", remaining);
-
         TargetProvider provider = PropertyResolver.getTargetProvider(
                 getCamelContext().getPropertiesComponent().resolveProperty(
                         providerProperty));
 
+        // if the property doesn't exist, the endpoint is being used for local debuggin
         if (provider == null) {
-            LOG.info("No provider settings found.");
-
+            // get property indicating whether the function creating this endpoint is
+            // triggered by a REST call or by other functions
             TriggerType triggerType = PropertyResolver
                     .getTriggerType(getCamelContext().getPropertiesComponent().resolveProperty(
                             "function.trigger"));
             Optional<String> fnName = getCamelContext().getPropertiesComponent().resolveProperty(
-                "function.name");
+                    "function.name");
             if (fnName.isEmpty()) {
                 throw new IllegalStateException(
-                    "Missing configuration 'function.name' for debugging.");
+                        "Missing configuration 'function.name' for debugging.");
             }
 
             if (triggerType != null) {
-                LOG.info("Trigger configuration found: " + triggerType);
-
+                // if triggered by REST, use endpoint to open a localhost port and listen
                 if (triggerType == TriggerType.API) {
-                    // open localhost websocket with netty-http
+                    // get a free port
                     int port;
                     do {
                         port = rng.nextInt(MAX_PORT_NUMBER - MIN_PORT_NUMBER) + MIN_PORT_NUMBER;
                     } while (!isPortAvailable(port));
+                    // create localhost url
                     String apiUri = "localhost:" + port + "/" + fnName.get();
+                    // return netty-http endpoint
                     return getCamelContext().getEndpoint("netty-http:http://" + apiUri);
                 } else if (triggerType == TriggerType.HTTP) {
-                    // subscribe to quarkus kafka topic
-                    LOG.info("Creating kafka endpoint: " + "kafka:" + fnName.get());
-                    return getCamelContext().getEndpoint("kafka:" + fnName.get());        
+                    // local debugging communication between function is simulated with kafka topics
+                    return getCamelContext().getEndpoint("kafka:" + fnName.get());
                 } else {
-                    throw new IllegalStateException("");
+                    throw new IllegalStateException("Unsupported trigger type");
                 }
             } else {
                 throw new IllegalStateException("Missing configuration 'function.trigger' for debugging.");
             }
-
         } else {
+            // otherwise return a normal function endpoint for cloud communication
             return new FunctionEndpoint(uri, remaining, this);
         }
     }
 
+    /**
+     * Registers a local consumer for discovery by local producers used by function
+     * handlers
+     * 
+     * @param functionName
+     * @param consumer
+     */
     public void addConsumer(String functionName, DirectFunctionConsumer consumer) {
         synchronized (consumers) {
             if (consumers.putIfAbsent(functionName, consumer) != null) {
@@ -96,10 +109,17 @@ public class FunctionComponent extends DefaultComponent {
         }
     }
 
+    /**
+     * Returns a local consumer used by function handlers to push messages to the
+     * Camel route.
+     * 
+     * @param functionName
+     * @return
+     * @throws InterruptedException
+     */
     public DirectFunctionConsumer getConsumer(String functionName) throws InterruptedException {
         synchronized (consumers) {
             DirectFunctionConsumer consumer = consumers.get(functionName);
-
             if (consumer == null) {
                 // try a second time after a while
                 consumers.wait(1000);
@@ -116,7 +136,7 @@ public class FunctionComponent extends DefaultComponent {
     }
 
     /**
-     * Checks to see if a specific port is available.
+     * Checks whether the given port is available.
      *
      * @param port the port to check for availability
      */

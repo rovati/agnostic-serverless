@@ -36,7 +36,7 @@ import ch.elca.rovl.dsl.resource.database.WorkloadType;
 import ch.elca.rovl.dsl.resource.database.Database.DatabaseConfigType;
 
 public class FlexibleServerHelper {
-    static final Logger LOG = LoggerFactory.getLogger("Deployment");
+    static final Logger LOG = LoggerFactory.getLogger("Deployment (Azure)");
 
     final int dbMinSizeGB = 32;
     final int dbMaxSizeGB = 32000;

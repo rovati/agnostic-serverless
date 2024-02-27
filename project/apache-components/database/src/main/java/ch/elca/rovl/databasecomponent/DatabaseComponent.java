@@ -6,14 +6,15 @@ import org.apache.camel.CamelContext;
 import org.apache.camel.Endpoint;
 
 import org.apache.camel.support.DefaultComponent;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
+/**
+ * Camel component for integration of the database building block.
+ * <p>
+ * Its URI is specified as "database:databaseName"
+ */
 @org.apache.camel.spi.annotations.Component("database")
 public class DatabaseComponent extends DefaultComponent {
     
-    private static final Logger LOG = LoggerFactory.getLogger(DatabaseComponent.class);
-
     public DatabaseComponent() {}
 
     public DatabaseComponent(CamelContext context) {
@@ -22,7 +23,7 @@ public class DatabaseComponent extends DefaultComponent {
 
     @Override
     protected Endpoint createEndpoint(String uri, String remaining, Map<String, Object> parameters) throws Exception {
-        LOG.info("Creating database endpoint with name " + remaining + " and parameters " + parameters.toString());
+        // proxy to jdbc component
         return getCamelContext().getEndpoint("jdbc:" + remaining, parameters);
     }
 }

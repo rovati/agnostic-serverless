@@ -4,6 +4,9 @@ import java.util.HashMap;
 import java.util.Map;
 import ch.elca.rovl.dsl.resource.Resource;
 
+/**
+ * Database resource.
+ */
 public final class Database extends Resource {
 
     private final String username;
@@ -46,6 +49,7 @@ public final class Database extends Resource {
         return String.format("Database[name=%s]", name);
     }
 
+    // NOTE expand to support more configuration
     public enum DatabaseConfigType {
         WORKLOAD_TYPE, SIZE_GB
     }

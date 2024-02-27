@@ -1,8 +1,11 @@
 package ch.elca.rovl.dsl.resource.database;
 
+/**
+ * Supported database engines.
+ */
 public enum DatabaseEngine {
-    MYSQL,
     POSTRGESQL,
-    MARIADB,
-    ORACLESQL
+    // MYSQL,
+    // MARIADB,
+    // ORACLESQL
 }

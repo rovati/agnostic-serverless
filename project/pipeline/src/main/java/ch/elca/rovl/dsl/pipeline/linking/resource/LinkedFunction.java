@@ -24,7 +24,7 @@ public final class LinkedFunction extends LinkedResource {
     boolean hasFunctionOutput;
     boolean hasDatabaseOutputOnAWS;
 
-    // TODO extend class?
+    // TODO code quality: extend class with platform specific function
     // Azure
     String resourceGroupName;
     String region;

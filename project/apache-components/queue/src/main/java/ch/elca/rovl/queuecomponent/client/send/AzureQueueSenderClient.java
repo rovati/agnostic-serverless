@@ -11,30 +11,36 @@ import com.azure.messaging.servicebus.ServiceBusMessage;
 import com.azure.messaging.servicebus.ServiceBusSenderClient;
 import ch.elca.rovl.queuecomponent.util.ExchangeSerializer;
 
-// messaging client
+/**
+ * Client used to push messages to a queue provisioned on Azure Service Bus.
+ */
 public class AzureQueueSenderClient implements QueueSenderClient {
 
     private static final Logger LOG = LoggerFactory.getLogger(AzureQueueSenderClient.class);
 
-    String queueName;
-    String connString;
-    ServiceBusSenderClient senderClient;
+    private final String connString;
+    private final ServiceBusSenderClient senderClient;
 
     public AzureQueueSenderClient(String queueName) {
-        this.queueName = queueName;
-        
+        // get connection string for the Service Bus queue 
         this.connString = System.getenv("CONN_STRING_" + queueName);
         if (this.connString == null) {
             throw new IllegalStateException("Could not load access key to queue " + queueName);
         }
 
-        createClient();
+        // initialize client for the queue on Service Bus
+        this.senderClient = new ServiceBusClientBuilder()
+            .connectionString(connString)
+            .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
+            .sender()
+            .queueName(queueName)
+            .buildClient();
     }
 
     @Override
     public void send(Exchange exchange) {
+        // serialize exchange
         String jsonedExchange;
-        
         try {
             jsonedExchange = ExchangeSerializer.serialize(exchange);
         } catch (IOException e) {
@@ -42,10 +48,11 @@ public class AzureQueueSenderClient implements QueueSenderClient {
             return;
         }
 
+        // send message to Service Bus queue
+        LOG.info("Sending Service Bus message.");
         ServiceBusMessage msg = new ServiceBusMessage(jsonedExchange);
-        LOG.info("Sending SB message \'" + msg.toString() + "\'");
         senderClient.sendMessage(msg);
-        LOG.info("Message sent");
+        LOG.info("Message sent.");
     }
 
     @Override
@@ -53,13 +60,4 @@ public class AzureQueueSenderClient implements QueueSenderClient {
         senderClient.close();
     }
 
-    private void createClient() {
-        senderClient = new ServiceBusClientBuilder()
-            .connectionString(connString)
-            .transportType(AmqpTransportType.AMQP_WEB_SOCKETS)
-            .sender()
-            .queueName(queueName)
-            .buildClient();
-    }
-    
 }

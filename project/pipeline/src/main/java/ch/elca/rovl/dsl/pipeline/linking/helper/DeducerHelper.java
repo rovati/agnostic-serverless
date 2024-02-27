@@ -14,6 +14,7 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslFunction;
 import ch.elca.rovl.dsl.pipeline.linking.LinkerEngine;
+import ch.elca.rovl.dsl.pipeline.linking.LinkingConstants;
 import ch.elca.rovl.dsl.pipeline.linking.model.Link;
 import ch.elca.rovl.dsl.pipeline.util.Constants;
 import ch.elca.rovl.dsl.pipeline.util.ResourceType;
@@ -25,8 +26,6 @@ import ch.elca.rovl.dsl.pipeline.util.ResourceTypeParser;
  */
 public class DeducerHelper {
 
-    final String deductionDir;
-    final String routeBuilderName;
     List<String> execPlugin;
 
     final VelocityContext context;
@@ -36,14 +35,11 @@ public class DeducerHelper {
      * Constructor.
      * 
      * @param deductionDir directory containing the generated functions to run the deduction on
-     * @param routeBuilderName name of the Apache Camel route builder file
      * @param context templating context
      * @param engine templating engine
      */
-    public DeducerHelper(String deductionDir, String routeBuilderName, VelocityContext context,
+    public DeducerHelper(VelocityContext context,
             VelocityEngine engine) {
-        this.deductionDir = deductionDir;
-        this.routeBuilderName = routeBuilderName;
         this.context = context;
         this.engine = engine;
 
@@ -62,7 +58,7 @@ public class DeducerHelper {
      * @throws IOException
      */
     public String copyProject(DslFunction function) throws IOException {
-        String path = deductionDir + function.getName() + "/";
+        String path = LinkingConstants.DEDUCTION_LOGS_DIR + function.getName() + "/";
         File generatedDir = new File(path);
         if (generatedDir.exists())
             throw new IllegalStateException(String.format(
@@ -110,7 +106,7 @@ public class DeducerHelper {
                 "\t\t\t\t</configuration>", "\t\t\t</plugin>");
     }
 
-    // TODO see if can be done with mvn command instead
+    // TODO robustness: see if can be done with mvn command instead
     /**
      * Modifies the project pom file to add required dependencies and plugins to run the link
      * deducer.

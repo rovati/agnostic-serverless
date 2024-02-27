@@ -1,5 +1,8 @@
 package ch.elca.rovl.dsl.pipeline.deployment.helper.azure;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.azure.core.management.exception.ManagementException;
 import com.azure.resourcemanager.servicebus.fluent.QueuesClient;
 import com.azure.resourcemanager.servicebus.fluent.models.SBQueueInner;
@@ -12,6 +15,8 @@ import ch.elca.rovl.dsl.pipeline.deployment.DeploymentConstants;
 import ch.elca.rovl.dsl.pipeline.deployment.helper.azure.model.ServiceBusQueueKeys;
 
 public class ServiceBusHelper {
+    static final Logger LOG = LoggerFactory.getLogger("Deployment (Azure)");
+
     final ServiceBusNamespaces client;
 
     public ServiceBusHelper(ServiceBusNamespaces namespaces) {
@@ -65,6 +70,8 @@ public class ServiceBusHelper {
             // try to get queue
             ns.manager().serviceClient().getQueues().get(
                     DeploymentConstants.AZURE_DEFAULT_RESOURCE_GROUP, namespaceName, queueName);
+
+            LOG.info(String.format("Queue '%s' already exists, skipping provisioning.", queueName));
         } catch (ManagementException e) {
             if (e.getResponse().getStatusCode() == 404) {
                 // if get queue throws and it is resource not found, create queue

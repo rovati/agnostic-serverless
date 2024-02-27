@@ -3,10 +3,12 @@ package ch.elca.rovl.dsl.api.queue;
 import ch.elca.rovl.dsl.api.FluentResourceBuilder;
 import ch.elca.rovl.dsl.resource.queue.Queue;
 
+/**
+ * Builder for a queue resource.
+ */
 public class FluentQueueBuilder implements FluentResourceBuilder {
 
     String name;
-    // ...
 
     protected FluentQueueBuilder(String name) {
         this.name = name;

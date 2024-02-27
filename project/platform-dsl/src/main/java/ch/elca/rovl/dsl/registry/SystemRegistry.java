@@ -8,6 +8,9 @@ import ch.elca.rovl.dsl.api.database.FluentDatabaseBuilder;
 import ch.elca.rovl.dsl.api.function.FluentFunctionBuilder;
 import ch.elca.rovl.dsl.api.queue.FluentQueueBuilder;
 
+/**
+ * System registry containing builders for the defined resources.
+ */
 public final class SystemRegistry {
 
     private final List<String> names;
@@ -22,31 +25,49 @@ public final class SystemRegistry {
         databaseBuilders = new HashMap<>();
     }
 
-    public boolean registerFunction(String functionName, FluentFunctionBuilder builder) {
+    /**
+     * Registers a new function builder. Checks that the given name is not already
+     * used by another resource.
+     * 
+     * @param functionName
+     * @param builder
+     */
+    public void registerFunction(String functionName, FluentFunctionBuilder builder) {
         if (names.contains(functionName)) {
             throw new IllegalArgumentException("Resource name already used: " + functionName);
         } else {
             names.add(functionName);
         }
-        return functionBuilders.put(functionName, builder) != null;
     }
 
-    public boolean registerQueue(String queueName, FluentQueueBuilder builder) {
+    /**
+     * Registers a new queue builder. Checks that the given name is not already used
+     * by another resource.
+     * 
+     * @param queueName
+     * @param builder
+     */
+    public void registerQueue(String queueName, FluentQueueBuilder builder) {
         if (names.contains(queueName)) {
             throw new IllegalArgumentException("Resource name already used: " + queueName);
         } else {
             names.add(queueName);
         }
-        return queueBuilders.put(queueName, builder) != null;
     }
 
-    public boolean registerDatabase(String databaseName, FluentDatabaseBuilder builder) {
+    /**
+     * Registers a new database builder. Checks that the given name is not already
+     * used by another resource.
+     * 
+     * @param databaseName
+     * @param builder
+     */
+    public void registerDatabase(String databaseName, FluentDatabaseBuilder builder) {
         if (names.contains(databaseName)) {
             throw new IllegalArgumentException("Resource name already used: " + databaseName);
         } else {
             names.add(databaseName);
         }
-        return databaseBuilders.put(databaseName, builder) != null;
     }
 
     public FluentFunctionBuilder getFunctionBuilder(String name) {
@@ -69,6 +90,10 @@ public final class SystemRegistry {
         return queueBuilders;
     }
 
+    /**
+     * Gets all registered builders.
+     * @return map {resource_name -> builder} of all registered builders
+     */
     public Map<String, FluentDatabaseBuilder> getDatabaseBuilders() {
         return databaseBuilders;
     }

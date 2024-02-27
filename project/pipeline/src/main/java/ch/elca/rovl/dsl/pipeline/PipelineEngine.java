@@ -67,6 +67,7 @@ public class PipelineEngine {
         RunTarget mode;
         Instant startTime = Instant.now();
 
+        // get pipeline exec mode from args
         if (args.length > 0) {
             if (args.length > 1) {
                 LOG.error("Cannot provide more than one parameter!");

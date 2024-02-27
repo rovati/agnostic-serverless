@@ -22,6 +22,10 @@ public class Constants {
      */
     public final static String DEBUGGING_DIR = GENERATED_DIR + "debugging/";
     /**
+     * Path of the directory where all generated deployment data will be written to.
+     */
+    public final static String DEPLOYMENT_DIR = GENERATED_DIR + "deployment/";
+    /**
      * Name of the file where names of resources are written to facilitate recognition of resources
      * that have already been deployed.
      */

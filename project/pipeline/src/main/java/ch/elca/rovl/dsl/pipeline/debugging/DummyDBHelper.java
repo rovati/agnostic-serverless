@@ -11,6 +11,10 @@ import org.apache.velocity.runtime.resource.loader.ClasspathResourceLoader;
 
 import ch.elca.rovl.dsl.pipeline.util.Constants;
 
+/**
+ * Helper class used to generate dummy Quarkus projects. The projects can be run
+ * in dev mode to trigger Quarkus Dev Services and provision local databases.
+ */
 public class DummyDBHelper {
 
     private final String pomVM = "pom.vm";
@@ -64,11 +68,11 @@ public class DummyDBHelper {
         fw.close();
         fw = new FileWriter(projectDir + resourcesDir + propsName);
         engine.getTemplate(templatesDir + propsVM)
-            .merge(context, fw);
+                .merge(context, fw);
         fw.flush();
         fw.close();
 
         return projectDir;
     }
-    
+
 }

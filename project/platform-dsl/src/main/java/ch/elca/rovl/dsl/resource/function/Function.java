@@ -5,10 +5,16 @@ import java.util.Map;
 import ch.elca.rovl.dsl.api.function.models.FunctionRuntime;
 import ch.elca.rovl.dsl.resource.Resource;
 
+/**
+ * Function resource.
+ */
 public final class Function extends Resource {
 
+    // relative or absolute path to the parent directory of the project
     private final String projectPath;
     private final FunctionRuntime runtime;
+    // class extending Camel RouteBuilder and containing the definition of the route
+    // of this function
     private final String handler;
     private final Map<FunctionConfigType, Object> config;
 
@@ -45,8 +51,9 @@ public final class Function extends Resource {
         return String.format("Function[name=%s]", name);
     }
 
+    // NOTE expand to support more configuration
     public enum FunctionConfigType {
         TRIGGER, EXEC_TIMEOUT
     }
-    
+
 }

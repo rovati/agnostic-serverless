@@ -2,17 +2,20 @@ package ch.elca.rovl.dsl.pipeline.deployment.helper.aws;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import ch.elca.rovl.dsl.pipeline.deployment.DeploymentConstants;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableFunction;
 import ch.elca.rovl.dsl.pipeline.util.Constants;
+import ch.elca.rovl.dsl.resource.function.Function.FunctionConfigType;
 import software.amazon.awssdk.arns.Arn;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
@@ -120,7 +123,6 @@ public class LambdaHelper {
                 RequestBody.fromFile(zipFile));
     }
 
-    // TODO update with function configuration
     /**
      * Creates the lambda function or updates it if it already exists.
      * 
@@ -133,6 +135,10 @@ public class LambdaHelper {
      */
     public String createOrUpdateLambda(DeployableFunction function, String bucketKey,
             String lambdaRoleArn, String handlerMethod) throws InterruptedException {
+
+        int timeout = (int) function.getFunction().getConfig().get(FunctionConfigType.EXEC_TIMEOUT);
+        timeout = timeout < 0 ? DeploymentConstants.AWS_LAMBDA_TIMEOUT : timeout; 
+        
         try {
             // get function if it exists
             String functionArn = lambdaClient
@@ -147,13 +153,14 @@ public class LambdaHelper {
 
             // wait while code configuration is being updated
             Thread.sleep(10000);
+
             // update configuration
             lambdaClient.updateFunctionConfiguration(UpdateFunctionConfigurationRequest.builder()
                     .handler(handlerMethod)
                     .functionName(function.getCloudName())
                     .runtime(Runtime.JAVA17)
                     .role(lambdaRoleArn)
-                    .timeout(DeploymentConstants.AWS_LAMBDA_TIMEOUT)
+                    .timeout(timeout)
                     .build());
 
             return functionArn;
@@ -171,7 +178,7 @@ public class LambdaHelper {
                     .handler(handlerMethod)
                     .runtime(Runtime.JAVA17)
                     .architectures(Architecture.X86_64)
-                    .timeout(DeploymentConstants.AWS_LAMBDA_TIMEOUT)
+                    .timeout(timeout)
                     .build())
                 .functionArn();
         }
@@ -193,8 +200,7 @@ public class LambdaHelper {
         } catch (ResourceNotFoundException e) {
             // create url for function
             String functionUrl = lambdaClient.createFunctionUrlConfig(CreateFunctionUrlConfigRequest
-                    .builder().functionName(functionName).authType(FunctionUrlAuthType.NONE) // TODO
-                                                                                             // change
+                    .builder().functionName(functionName).authType(FunctionUrlAuthType.NONE)
                     .build()).functionUrl();
 
             // allow invocation of function
@@ -238,12 +244,22 @@ public class LambdaHelper {
             } catch (ResourceConflictException e) {
                 tries++;
                 LOG.warn(String.format("lambda '%s' not ready for config update. Retrying in a while...", functionName));
-                Thread.sleep(20000);
+                Thread.sleep(20000 * (tries+1));
                 continue;
             }
             return;
         }
-        LOG.error("Could not update configuration for Lambda " + functionName + "!");
+
+        String filePath = Constants.DEPLOYMENT_DIR + "aws/" + functionName + "-envvars.txt";
+        File envVarDump = new File(filePath);
+        try {
+            FileUtils.write(envVarDump, envVars.toString(), StandardCharsets.UTF_8);
+            LOG.error("Could not update environment variables for Lambda " + functionName +
+                String.format("! Please add manually the values found in file '%s'", filePath));
+        } catch (IOException e) {
+            LOG.error("Could not update environment variables for Lambda " + functionName + "!");
+        }
+
     }
 
     /**

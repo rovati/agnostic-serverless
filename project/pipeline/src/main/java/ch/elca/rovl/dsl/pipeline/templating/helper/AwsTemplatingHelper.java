@@ -64,7 +64,6 @@ public class AwsTemplatingHelper implements TemplatingHelper {
     final List<String> parentTag;
 
     final String outputDir;
-    final String packageName;
 
     /**
      * Templating helper for AWS constructor.
@@ -78,15 +77,14 @@ public class AwsTemplatingHelper implements TemplatingHelper {
      * @throws IOException
      */
     public AwsTemplatingHelper(VelocityEngine engine, VelocityContext context, String outputDir,
-            String packageName, ResourceNameMemory namesMemory) throws IOException {
+            ResourceNameMemory namesMemory) throws IOException {
         this.engine = engine;
         this.context = context;
         this.outputDir = outputDir + "aws/";
-        this.packageName = packageName;
         this.namesMemory = namesMemory;
         this.rng = new Random();
 
-        this.context.put("package", packageName);
+        this.context.put("package", TemplatingConstants.PACKAGE_NAME);
 
         // create generated aws dir
         File awsDir = new File(this.outputDir);
@@ -103,7 +101,8 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         fileWriter.close();
 
         // parent tag to add to user defined pom
-        parentTag = Arrays.asList("\t<parent>", String.format("\t\t<groupId>%s</groupId>", packageName),
+        parentTag = Arrays.asList("\t<parent>",
+                String.format("\t\t<groupId>%s</groupId>", TemplatingConstants.PACKAGE_NAME),
                 "\t\t<artifactId>generated-aws-functions</artifactId>",
                 "\t\t<version>1.0.0</version>", "\t</parent>");
     }
@@ -123,7 +122,7 @@ public class AwsTemplatingHelper implements TemplatingHelper {
 
         String rootPath = outputDir + function.getName() + "/";
         String mainPath = rootPath + "src/main/";
-        String codePath = mainPath + "java/" + packageName.replace('.', '/') + "/";
+        String codePath = mainPath + "java/" + TemplatingConstants.PACKAGE_NAME.replace('.', '/') + "/";
         String resourcesPath = mainPath + "resources/";
         String dockerPath = mainPath + "docker/";
 
@@ -182,7 +181,7 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         String fnName = function.getName() + "-glue";
 
         String rootPath = outputDir + fnName + "/";
-        String codePath = rootPath + "src/main/java/" + packageName.replace('.', '/') + "/";
+        String codePath = rootPath + "src/main/java/" + TemplatingConstants.PACKAGE_NAME.replace('.', '/') + "/";
         String testPath = rootPath + "src/test/";
 
         generateGlueArchetype(fnName);
@@ -250,7 +249,7 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         File propsFile = new File(resourcesPath + "application.properties");
         if (!propsFile.exists())
             return;
-        
+
         FileReader fReader = new FileReader(propsFile);
         BufferedReader reader = new BufferedReader(fReader);
         List<String> modifiedContent = new ArrayList<>();
@@ -356,6 +355,9 @@ public class AwsTemplatingHelper implements TemplatingHelper {
 
     /**
      * Modifies the pom by adding necessary tags for the maven build.
+     * <p>
+     * NOTE this process would be more robust if the command 'quarkus ext add' were
+     * to be used instead.
      * 
      * @param pomPath                path to the generated pom
      * @param addDBDependencies      whether to add dependencies to interact with
@@ -489,11 +491,12 @@ public class AwsTemplatingHelper implements TemplatingHelper {
                     String.format(entry, lr.getName(), lr.getProvider()), "utf8", true);
         }
 
-        //add inputs
-        LinkedQueue inputQ = function.getInputQueue(); 
+        // add inputs
+        LinkedQueue inputQ = function.getInputQueue();
         if (inputQ != null) {
             FileUtils.writeStringToFile(appPropeties,
-                    String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8", true);
+                    String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8",
+                    true);
         }
         // provider of this function
         FileUtils.writeStringToFile(appPropeties,
@@ -504,7 +507,8 @@ public class AwsTemplatingHelper implements TemplatingHelper {
     /**
      * Same as {@link #setContext(LinkedFunction) setContext} but for a glue
      * function.
-     * @throws IOException 
+     * 
+     * @throws IOException
      */
     private String setGlueContext(DeployableFunction function) throws IOException {
         String glueFunctionName = function.getName() + "-glue";
@@ -541,7 +545,7 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         String archetypeCmd = "cmd.exe /c cd %s & " + "mvn io.quarkus.platform:quarkus-maven-plugin:3.5.1:create "
                 + "-DprojectGroupId=%s -DprojectArtifactId=%s -DprojectVersion=1.0";
 
-        String cmd = String.format(archetypeCmd, outputDir, packageName, functionName);
+        String cmd = String.format(archetypeCmd, outputDir, TemplatingConstants.PACKAGE_NAME, functionName);
 
         Process p = Runtime.getRuntime().exec(cmd);
         if (p.waitFor() != 0) {
@@ -619,9 +623,9 @@ public class AwsTemplatingHelper implements TemplatingHelper {
             StringJoiner sj = new StringJoiner("\n");
             for (String dbName : databases) {
                 sj.add(String.format(TemplatingConstants.AWS_DB_DATASOURCE_BLOCK, dbName, dbName,
-                dbName, dbName, dbName));
+                        dbName, dbName, dbName));
             }
-            
+
             context.put("dbImports", TemplatingConstants.AWS_DB_IMPORTS);
             context.put("databaseSources", sj.toString());
         }

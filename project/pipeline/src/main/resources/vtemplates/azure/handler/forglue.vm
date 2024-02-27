@@ -87,6 +87,7 @@ $registerDatabases
 
             // create endpoint to send exchange to
             QueueEndpoint endpoint = camelContext.getEndpoint("queue:$queueName", QueueEndpoint.class);
+            endpoint.setUseDirectProducer(true);
             Exchange ex = endpoint.createExchange();
             try {
                 deserializeExchange(ex, body);

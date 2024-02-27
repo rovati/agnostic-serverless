@@ -47,7 +47,7 @@ $databaseSources
         APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
 
         /* AUTHORIZATION CHECK */
-        String secretKeyStr = System.getenv("JWT_KEY");
+        String secretKeyStr = System.getenv("JWT_KEY_$functionName");
         if (secretKeyStr == null) {
             response.setStatusCode(500);
             response.setBody("Couldn't load jwt key.");
@@ -74,12 +74,8 @@ $databaseSources
             return response;
         }
 
-
-        String body = event.getBody();
-        if (event.getIsBase64Encoded()) {
-            context.getLogger().log("Decoding body from base64.");
-            body = new String(Base64.getDecoder().decode(body));
-        }
+        // NOTE assumes every glue handler sends in base64
+        String body = new String(Base64.getDecoder().decode(event.getBody()));
         context.getLogger().log(String.format("event body: \'%s\'", body));
 
         // create local endpoint to push exchange to route

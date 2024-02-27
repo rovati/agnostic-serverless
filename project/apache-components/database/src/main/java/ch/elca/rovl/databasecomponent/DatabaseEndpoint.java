@@ -10,7 +10,7 @@ import org.apache.camel.spi.UriEndpoint;
 import org.apache.camel.spi.UriPath;
 
 /**
- * database component which does bla bla.
+ * Placeholder database endpoint. Not Used.
  *
  */
 @UriEndpoint(firstVersion = "1.0.0", scheme = "database", title = "database", syntax="database:name",

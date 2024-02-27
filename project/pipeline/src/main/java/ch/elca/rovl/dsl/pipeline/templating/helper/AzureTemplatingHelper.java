@@ -31,7 +31,8 @@ import ch.elca.rovl.dsl.pipeline.util.RequiredData.Type;
 import ch.elca.rovl.dsl.resource.function.HttpMethod;
 
 /**
- * Helper class of {@link TemplatingEngine TemplatingEngine} to generate function projects that can
+ * Helper class of {@link TemplatingEngine TemplatingEngine} to generate
+ * function projects that can
  * be built and deployed on Azure.
  */
 public final class AzureTemplatingHelper implements TemplatingHelper {
@@ -40,7 +41,6 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     final VelocityEngine engine;
     final Random rng;
     final String outputDir;
-    final String packageName;
     final ResourceNameMemory namesMemory;
 
     String functionAppName;
@@ -64,22 +64,20 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     final String glueHandlerVM = "gluehandler.vm";
     final String gluePomVM = "gluepom.vm";
 
-
     /**
      * Templating helper for Azure constructor.
      * 
-     * @param engine Velocity templating engine
-     * @param context Velocity templating context
-     * @param outputDir path to the directory where to generate function projects
-     * @param packageName package name of the generated projects
-     * @param namesMemory data structure containing cloud names of already deployed resources.
+     * @param engine      Velocity templating engine
+     * @param context     Velocity templating context
+     * @param outputDir   path to the directory where to generate function projects
+     * @param namesMemory data structure containing cloud names of already deployed
+     *                    resources.
      * @throws IOException
      */
     public AzureTemplatingHelper(VelocityEngine engine, VelocityContext context, String outputDir,
-            String packageName, ResourceNameMemory namesMemory) throws IOException {
+            ResourceNameMemory namesMemory) throws IOException {
         this.context = context;
         this.engine = engine;
-        this.packageName = packageName;
         this.outputDir = outputDir + "azure/";
         this.rng = new Random();
         this.namesMemory = namesMemory;
@@ -92,7 +90,7 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         }
 
         // write parent pom
-        context.put("package", packageName);
+        context.put("package", TemplatingConstants.PACKAGE_NAME);
         FileWriter fileWriter = new FileWriter(this.outputDir + TemplatingConstants.POM_NAME);
         Template t = engine.getTemplate(parentPomVM);
         t.merge(context, fileWriter);
@@ -100,14 +98,15 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         fileWriter.close();
 
         // tag to add to pom
-        parentTag =
-                Arrays.asList("\t<parent>", String.format("\t\t<groupId>%s</groupId>", packageName),
-                        "\t\t<artifactId>generated-azure-functions</artifactId>",
-                        "\t\t<version>1.0.0</version>", "\t</parent>");
+        parentTag = Arrays.asList("\t<parent>",
+                String.format("\t\t<groupId>%s</groupId>", TemplatingConstants.PACKAGE_NAME),
+                "\t\t<artifactId>generated-azure-functions</artifactId>",
+                "\t\t<version>1.0.0</version>", "\t</parent>");
     }
 
     /**
-     * Generates a project for the given function that is deployable on Azure, then returns the
+     * Generates a project for the given function that is deployable on Azure, then
+     * returns the
      * function pipeline object extended with information required for deployment.
      * 
      * @param function
@@ -121,10 +120,9 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         String rootPath = outputDir + function.getName() + "/";
         String resourcesPath = rootPath + "src/main/resources/";
         String pomPath = rootPath + TemplatingConstants.POM_NAME;
-        String handlerPath = rootPath + "src/main/java/" + packageName.replace('.', '/') + "/"
+        String handlerPath = rootPath + "src/main/java/" + TemplatingConstants.PACKAGE_NAME.replace('.', '/') + "/"
                 + TemplatingConstants.HANDLER_NAME;
-        String appPropertiesPath =
-                rootPath + "src/main/resources/" + TemplatingConstants.APP_PROPERTIES_NAME;
+        String appPropertiesPath = rootPath + "src/main/resources/" + TemplatingConstants.APP_PROPERTIES_NAME;
 
         copyFunctionProject(function, rootPath);
         removeDebuggingProperties(resourcesPath);
@@ -138,7 +136,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         DeployableFunction dfn = new DeployableFunction(function, rootPath);
         dfn.setCloudName(functionAppName);
 
-        // if function has queue input and it is not a glue function, register for queue listen
+        // if function has queue input and it is not a glue function, register for queue
+        // listen
         // perms
         if (function.getInputQueue() != null && !function.requiresGlue()) {
             dfn.require(Type.QUEUE_LISTEN, function.getInputQueue().getName());
@@ -163,8 +162,10 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Generates a project of a glue function deployable on Azure for the given function, then
-     * returns the function pipeline object extended with information required for deployment.
+     * Generates a project of a glue function deployable on Azure for the given
+     * function, then
+     * returns the function pipeline object extended with information required for
+     * deployment.
      * 
      * @param function function that requries glue
      * @throws IOException
@@ -177,7 +178,7 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         String fnName = function.getName() + "-glue";
 
         String rootDir = outputDir + fnName + "/";
-        String codeDir = rootDir + "src/main/java/" + packageName.replace(".", "/") + "/";
+        String codeDir = rootDir + "src/main/java/" + TemplatingConstants.PACKAGE_NAME.replace(".", "/") + "/";
         String testDir = rootDir + "src/main/test/";
 
         generateGlueProject(rootDir, codeDir, testDir);
@@ -198,7 +199,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Sets values on the templating context for the generation of the project for given function.
+     * Sets values on the templating context for the generation of the project for
+     * given function.
      * 
      * @param function
      * @return name of the cloud function corresponding to the given function
@@ -211,8 +213,7 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         if (memoryName != null) {
             functionAppName = memoryName;
         } else {
-            functionAppName =
-                    function.getName().replace('_', '-') + "-" + IdGenerator.get().generate();
+            functionAppName = function.getName().replace('_', '-') + "-" + IdGenerator.get().generate();
             namesMemory.addNewMemory(function.getName(), functionAppName);
         }
 
@@ -238,7 +239,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
      * Copied the function project to the folder containing the deployable projects.
      * 
      * @param function
-     * @param rootPath path to the root directory containing functions deployable on Azure
+     * @param rootPath path to the root directory containing functions deployable on
+     *                 Azure
      * @throws IOException
      */
     private void copyFunctionProject(LinkedFunction function, String rootPath) throws IOException {
@@ -253,11 +255,17 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
                 generatedDir);
     }
 
+    /**
+     * Removes configuration properties that were generated for local debugging.
+     * 
+     * @param resourcesPath path to the resources directory in the function projects
+     * @throws IOException
+     */
     private void removeDebuggingProperties(String resourcesPath) throws IOException {
         File propsFile = new File(resourcesPath + "application.properties");
         if (!propsFile.exists())
             return;
-        
+
         FileReader fReader = new FileReader(propsFile);
         BufferedReader reader = new BufferedReader(fReader);
         List<String> modifiedContent = new ArrayList<>();
@@ -319,7 +327,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
                 case TIMER:
                 default:
                     fileWriter.close();
-                    throw new IllegalArgumentException("Templating handler gen - unsupported trigger: " + function.getTriggerType());
+                    throw new IllegalArgumentException(
+                            "Templating handler gen - unsupported trigger: " + function.getTriggerType());
             }
         }
 
@@ -332,12 +341,17 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
 
     /**
      * Modifies the pom by adding necessary tags for the maven build.
+     * <p>
+     * NOTE in case of dependencies (not plugins) this process would be more robust
+     * is the command 'quarkus ext add' were to be used instead.
      * 
-     * @param pomPath path to the generated pom
-     * @param addDBDependencies whether to add dependencies to support database interactions
-     * @param addExchangeDependencies whether to add dependencies for Apache Camel Exchange
-     *        deserialization
-     * @param addJwtDependencies whether to add dependencies for Java JWT
+     * @param pomPath                 path to the generated pom
+     * @param addDBDependencies       whether to add dependencies to support
+     *                                database interactions
+     * @param addExchangeDependencies whether to add dependencies for Apache Camel
+     *                                Exchange
+     *                                deserialization
+     * @param addJwtDependencies      whether to add dependencies for Java JWT
      * @throws IOException
      */
     private void extendPom(String pomPath, boolean addDBDependencies,
@@ -430,11 +444,13 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Writes a properties file containing info about resources this function is linked to, which
+     * Writes a properties file containing info about resources this function is
+     * linked to, which
      * will be used by Apache Camel components.
      * 
      * @param function
-     * @param appPropertiesPath path to where the properties file needs to be written
+     * @param appPropertiesPath path to where the properties file needs to be
+     *                          written
      * @throws IOException
      */
     private void setProperties(LinkedFunction function, String appPropertiesPath)
@@ -461,11 +477,12 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
                     String.format(entry, lr.getName(), lr.getProvider()), "utf8", true);
         }
 
-        //add inputs
-        LinkedQueue inputQ = function.getInputQueue(); 
+        // add inputs
+        LinkedQueue inputQ = function.getInputQueue();
         if (inputQ != null) {
             FileUtils.writeStringToFile(appPropeties,
-                    String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8", true);
+                    String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8",
+                    true);
         }
         // provider of this function
         FileUtils.writeStringToFile(appPropeties,
@@ -495,7 +512,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Same as {@link #setContext(LinkedFunction) setContext} but for a glue function.
+     * Same as {@link #setContext(LinkedFunction) setContext} but for a glue
+     * function.
      */
     private String setGlueContext(DeployableFunction function) throws IOException {
         String memoryName = namesMemory.get(function.getName() + "-glue");
@@ -521,7 +539,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Generates the project directories for a glue function to be deployed on Azure.
+     * Generates the project directories for a glue function to be deployed on
+     * Azure.
      * 
      * @param rootDir path to the root directory where the project will be generated
      * @param codeDir path to the code directory
@@ -604,7 +623,8 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Puts in the templating context values necessary to register databases in the camel context.
+     * Puts in the templating context values necessary to register databases in the
+     * camel context.
      * 
      * @param function
      */
@@ -620,7 +640,7 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
                     sj.add("\"" + lr.getName() + "\"");
                 }
             }
-            
+
             context.put("dbImports", TemplatingConstants.AZURE_DB_IMPORTS);
             context.put("registerDatabases", String.format(TemplatingConstants.AZURE_REGISTER_DBS, sj.toString()));
             context.put("datasourceMethod", TemplatingConstants.AZURE_DATASOURCE_METHOD);

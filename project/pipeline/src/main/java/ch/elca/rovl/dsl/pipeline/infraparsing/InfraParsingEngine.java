@@ -12,7 +12,8 @@ import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslQueue;
 import ch.elca.rovl.dsl.registry.SystemRegistry;
 
 /**
- * Engine that takes care of parsing the infrastructure layout defined by the user.
+ * Engine that takes care of parsing the infrastructure layout defined by the
+ * user.
  */
 public class InfraParsingEngine {
 
@@ -21,19 +22,26 @@ public class InfraParsingEngine {
     private final Map<String, DslQueue> queues;
     private final Map<String, DslDatabase> databases;
 
+    /**
+     * Constructor of the engine.
+     * 
+     * @param definition resources configuration file of the user
+     */
     public InfraParsingEngine(PlatformResourcesDefinition definition) {
         this.definition = definition;
         this.functions = new HashMap<>();
         this.queues = new HashMap<>();
         this.databases = new HashMap<>();
 
-        // set registry and register layout resources
         this.definition.define();
     }
 
     /**
-     * Validates the definition of each resource, and then transforms them into resources usable by
-     * the subsequent steps of the pipeline.
+     * Validates the definition of each resource, and then transforms them into
+     * resources usable by the subsequent steps of the pipeline.
+     * <p>
+     * Names of resources cannot contains dashes because of cloud resource naming
+     * requirements.
      */
     public void parseResources() {
         SystemRegistry sysReg = definition.getSystemRegistry();
@@ -75,6 +83,7 @@ public class InfraParsingEngine {
 
     /**
      * Returns a map {functionName: function} with the user definitions.
+     * 
      * @return functions map
      */
     public Map<String, DslFunction> getFunctions() {
@@ -83,6 +92,7 @@ public class InfraParsingEngine {
 
     /**
      * Returns a map {queueName: queue} with the user definitions.
+     * 
      * @return queues map
      */
     public Map<String, DslQueue> getQueues() {
@@ -91,10 +101,11 @@ public class InfraParsingEngine {
 
     /**
      * Returns a map {databaseName: database} with the user definitions.
+     * 
      * @return databases map
      */
     public Map<String, DslDatabase> getDatabases() {
         return databases;
     }
-    
+
 }

@@ -4,7 +4,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>ch.elca.rovl.agnostic-serverless</groupId>
   <artifactId>camel-function</artifactId>
-  <version>1.0.2-SNAPSHOT</version>
+  <version>1.1.1</version>
 
   <name>Camel function Component</name>
   

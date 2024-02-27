@@ -68,7 +68,7 @@ public final class DeploymentEngine {
         }
     }
 
-    // TODO deploy databases, rest APIs and queue in parallel
+    // TODO optimization:  deploy databases, rest APIs and queue in parallel
     /**
      * Provisions servers and deploys databases to their target providers. Retrieves access perms
      * for each database.
@@ -79,7 +79,7 @@ public final class DeploymentEngine {
      */
     public void deployDatabases() throws IOException, URISyntaxException, InterruptedException {
         if (!databases.isEmpty()) {
-            LOG.info("Deploying databases...");
+            LOG.info("Provisioning databases, this might take a while...");
             for (DeployableDatabase db : databases) {
                 //LOG.info(String.format("Deploying database %s...", db.toString()));
                 DeployedDatabase ddb = helperFactory.getHelper(db.getProvider()).deploy(db);
@@ -99,8 +99,7 @@ public final class DeploymentEngine {
      */
     public void deployQueues() throws IOException, URISyntaxException {
         if (!queues.isEmpty()) {
-
-            LOG.info("Deploying queues...");
+            LOG.info("Provisioning queues...");
             for (DeployableQueue q : queues) {
                 //LOG.info(String.format("Deploying queue %s...", q.toString()));
                 DeployedQueue dq = helperFactory.getHelper(q.getProvider()).deploy(q);

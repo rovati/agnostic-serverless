@@ -2,11 +2,8 @@ package ch.elca.rovl.dsl;
 
 import ch.elca.rovl.dsl.api.database.DatabaseEntryPoint;
 import ch.elca.rovl.dsl.api.function.FunctionEntryPoint;
-import ch.elca.rovl.dsl.api.function.models.FunctionRuntime;
 import ch.elca.rovl.dsl.api.queue.QueueEntryPoint;
 import ch.elca.rovl.dsl.registry.SystemRegistry;
-import ch.elca.rovl.dsl.resource.database.DatabaseEngine;
-import ch.elca.rovl.dsl.resource.function.AuthorizationType;
 
 /**
  * Class containing the definition of cloud resources needed by the user for the serverless
@@ -58,24 +55,12 @@ public abstract class PlatformResourcesDefinition {
         return new DatabaseEntryPoint(sysRegistry, name);
     }
 
-    // TODO implements methods to set default configurations
 
-    protected void setDefaultFunctionProjectsLocation(String dir) {
-        throw new UnsupportedOperationException("Not implemented yet.");
-    }
-
-    protected void setDefaultFunctionRuntime(FunctionRuntime runtime) {
-        throw new UnsupportedOperationException("Not implemented yet.");
-    }
-
-    protected void setDefaultDatabaseEngine(DatabaseEngine engine) {
-        throw new UnsupportedOperationException("Not implemented yet.");
-    }
-
-    protected void setDefaultRestAuthorizationMethod(AuthorizationType authType) {
-        throw new UnsupportedOperationException("Not implemented yet.");
-    }
-
+    /**
+     * Used by the pipeline to retrieve the defined resources.
+     * 
+     * @return system registry containing the defined resources
+     */
     public SystemRegistry getSystemRegistry() {
         return sysRegistry;
     }
