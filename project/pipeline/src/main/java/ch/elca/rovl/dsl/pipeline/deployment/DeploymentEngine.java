@@ -78,12 +78,17 @@ public final class DeploymentEngine {
      * @throws InterruptedException
      */
     public void deployDatabases() throws IOException, URISyntaxException, InterruptedException {
-        for (DeployableDatabase db : databases) {
-            LOG.info(String.format("Deploying database %s...", db.toString()));
-            DeployedDatabase ddb = helperFactory.getHelper(db.getProvider()).deploy(db);
-            deployedMap.put(db.getName(), ddb);
+        if (!databases.isEmpty()) {
+            LOG.info("Deploying databases...");
+            for (DeployableDatabase db : databases) {
+                //LOG.info(String.format("Deploying database %s...", db.toString()));
+                DeployedDatabase ddb = helperFactory.getHelper(db.getProvider()).deploy(db);
+                deployedMap.put(db.getName(), ddb);
+            }
+            LOG.info("Databases succesfully provisioned.");
+        } else {
+            LOG.info("No database to provision.");
         }
-        LOG.info("Databases succesfully deployed.");
     }
 
     /**
@@ -93,12 +98,18 @@ public final class DeploymentEngine {
      * @throws URISyntaxException
      */
     public void deployQueues() throws IOException, URISyntaxException {
-        for (DeployableQueue q : queues) {
-            LOG.info(String.format("Deploying queue %s...", q.toString()));
-            DeployedQueue dq = helperFactory.getHelper(q.getProvider()).deploy(q);
-            deployedMap.put(q.getName(), dq);
+        if (!queues.isEmpty()) {
+
+            LOG.info("Deploying queues...");
+            for (DeployableQueue q : queues) {
+                //LOG.info(String.format("Deploying queue %s...", q.toString()));
+                DeployedQueue dq = helperFactory.getHelper(q.getProvider()).deploy(q);
+                deployedMap.put(q.getName(), dq);
+            }
+            LOG.info("Queues succesfully provisioned.");
+        } else {
+            LOG.info("No queue to provision.");
         }
-        LOG.info("Queues succesfully deployed.");
     }
 
     /**
@@ -110,55 +121,61 @@ public final class DeploymentEngine {
      * @throws URISyntaxException
      */
     public void deployFunctions() throws InterruptedException, IOException, URISyntaxException {
-        List<DeployedFunction> deployedFunctions = Collections.synchronizedList(new ArrayList<>());
-        ExecutorService executor = Executors.newCachedThreadPool();
+        if (!functions.isEmpty()) {
+            LOG.info("Deploying functions...");
+        
+            List<DeployedFunction> deployedFunctions = Collections.synchronizedList(new ArrayList<>());
+            ExecutorService executor = Executors.newCachedThreadPool();
 
-        Map<Future<?>, DeployableFunction> deploymentTasks = new HashMap<>();
+            Map<Future<?>, DeployableFunction> deploymentTasks = new HashMap<>();
 
-        for (DeployableFunction fn : functions) {
-            DeploymentHelper dh = helperFactory.getHelper(fn.getProvider());
+            for (DeployableFunction fn : functions) {
+                DeploymentHelper dh = helperFactory.getHelper(fn.getProvider());
 
-            deploymentTasks.put(executor.submit(() -> {
-                DeployedFunction dfn;
+                deploymentTasks.put(executor.submit(() -> {
+                    DeployedFunction dfn;
+                    try {
+                        dfn = dh.deploy(fn);
+                    } catch (InterruptedException e) {
+                        LOG.error(String.format("Deployment of function '%s' failed!", fn.getName()));
+                        e.printStackTrace();
+                        return;
+                    }
+                    deployedFunctions.add(dfn);
+                }), fn);
+            }
+
+            boolean deploymentHasFailed = false;
+
+            // wait until all tasks are done
+            for (Future<?> res : deploymentTasks.keySet()) {
                 try {
-                    dfn = dh.deploy(fn);
-                } catch (InterruptedException e) {
-                    LOG.error(String.format("Deployment of function '%s' failed!", fn.getName()));
-                    e.printStackTrace();
-                    return;
+                    res.get();
+                } catch (ExecutionException e) {
+                    deploymentHasFailed = true;
+                    LOG.error(String.format("Deployment failed for function %s",
+                            deploymentTasks.get(res).getName()), e);
                 }
-                deployedFunctions.add(dfn);
-            }), fn);
-        }
-
-        boolean deploymentHasFailed = false;
-
-        // wait until all tasks are done
-        for (Future<?> res : deploymentTasks.keySet()) {
-            try {
-                res.get();
-            } catch (ExecutionException e) {
-                deploymentHasFailed = true;
-                LOG.error(String.format("Deployment failed for function %s",
-                        deploymentTasks.get(res).getName()), e);
             }
-        }
 
-        executor.shutdown();
+            executor.shutdown();
 
-        if (deploymentHasFailed) {
-            throw new IllegalStateException("Deployment of some functions failed.");
-        }
-
-        for (DeployedFunction dfn : deployedFunctions) {
-            deployedMap.put(dfn.getName(), dfn);
-
-            if (dfn.requiresData()) {
-                needsData.add(dfn);
+            if (deploymentHasFailed) {
+                throw new IllegalStateException("Deployment of some functions failed.");
             }
-        }
 
-        LOG.info("Functions succesfully deployed.");
+            for (DeployedFunction dfn : deployedFunctions) {
+                deployedMap.put(dfn.getName(), dfn);
+
+                if (dfn.requiresData()) {
+                    needsData.add(dfn);
+                }
+            }
+
+            LOG.info("Functions succesfully deployed.");
+        } else {
+            LOG.info("No function to deploy.");
+        }
     }
 
     /**
@@ -203,6 +220,8 @@ public final class DeploymentEngine {
                 throw new IllegalStateException("Unexpected deployed resource type for: " + dr.getName());
             }
         }
+
+        LOG.info("All resources correctly configured.");
 
         return finalResources;
     }

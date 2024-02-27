@@ -7,11 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.filefilter.NameFileFilter;
-import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.velocity.Template;
 import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
@@ -19,7 +16,6 @@ import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslFunction;
 import ch.elca.rovl.dsl.pipeline.linking.LinkerEngine;
 import ch.elca.rovl.dsl.pipeline.linking.model.Link;
 import ch.elca.rovl.dsl.pipeline.util.Constants;
-import ch.elca.rovl.dsl.pipeline.util.PackageExtractor;
 import ch.elca.rovl.dsl.pipeline.util.ResourceType;
 import ch.elca.rovl.dsl.pipeline.util.ResourceTypeParser;
 
@@ -78,42 +74,30 @@ public class DeducerHelper {
         return path;
     }
 
-    // TODO use classgraph to get all file extending RouteBuilder, read all of them and filter for
-    // "queue" or "function"
     /**
      * Adds into the function project the Java class to be run in order to extract links info from
      * the Apache Camel route builder.
      * 
      * @param rootDir path to the project root directory in the temporary directory
+     * @param handler fully qualified name of the class containing the Apache Camel route definition
      * @throws IOException
      */
-    public void addEndpointExtractor(String rootDir) throws IOException {
-        // look for routebuilder file in project
-        File codeDir = new File(rootDir + "src/main/java/");
-        Collection<File> matchedFiles = FileUtils.listFiles(codeDir,
-                new NameFileFilter(routeBuilderName), TrueFileFilter.INSTANCE);
-        if (matchedFiles.size() < 1)
-            throw new IllegalStateException("Could not find FunctionRoute.java file in project");
-        // NOTE we should not worry about this case
-        if (matchedFiles.size() > 1)
-            throw new IllegalStateException(
-                    "Function project contains multiple FunctionRoute.java files!");
+    public void addEndpointExtractor(String rootDir, String handler) throws IOException {
+        // get package
+        String pkg = handler.substring(0, handler.lastIndexOf("."));
+        String handlerClass = handler.substring(handler.lastIndexOf(".") + 1);
 
-        // get its package
-        File functionRouteFile = matchedFiles.iterator().next();
-        String packageLine = PackageExtractor.getFilePackage(functionRouteFile);
+        context.put("package", pkg);
+        context.put("handlerClass", handlerClass);
 
         // add enpoint extractor
-        context.put("package", packageLine);
         File endpointExtractorFile =
-                new File(functionRouteFile.getParent() + "/EndpointExtractor.java");
+                new File(rootDir + "src/main/java/" + pkg.replace(".", "/") + "/EndpointExtractor.java");
         FileWriter fileWriter = new FileWriter(endpointExtractorFile);
         Template t = engine.getTemplate("vtemplates/linking/endpoint-ext.vm");
         t.merge(context, fileWriter);
         fileWriter.flush();
         fileWriter.close();
-
-        String functionPackage = packageLine.trim().replace("package ", "").replace(";", "");
 
         // format tag with endpoint extractor location
         execPlugin = Arrays.asList("\t\t\t<plugin>", "\t\t\t\t<groupId>org.codehaus.mojo</groupId>",
@@ -121,7 +105,7 @@ public class DeducerHelper {
                 "\t\t\t\t<version>3.1.0</version>", "\t\t\t\t<goals>",
                 "\t\t\t\t\t<goal>java</goal>", "\t\t\t\t</goals>", "\t\t\t\t<configuration>",
                 String.format("\t\t\t\t\t<mainClass>%s</mainClass>",
-                        functionPackage + ".EndpointExtractor"),
+                        pkg + ".EndpointExtractor"),
                 "\t\t\t\t\t<cleanupDaemonThreads>false</cleanupDaemonThreads>",
                 "\t\t\t\t</configuration>", "\t\t\t</plugin>");
     }
@@ -142,17 +126,12 @@ public class DeducerHelper {
         BufferedReader reader = new BufferedReader(fReader);
 
         boolean alreadyContainsExecPlugin = false;
-        boolean alreadyContainsDBComponent = false;
 
         for (String line; (line = reader.readLine()) != null;) {
             // if end of plugins section is reached and exec plugin is not present, add it
             if (line.trim().startsWith("</plugins>") && !alreadyContainsExecPlugin) {
                 // add plugin code
                 extendedPom.addAll(execPlugin);
-            }
-
-            if (line.contains("<groupId>ch.elca.rovl.databasecomponent</groupId>")) {
-                alreadyContainsDBComponent = true;
             }
 
             if (line.contains("<artifactId>exec-maven-plugin</artifactId>")) {
@@ -167,7 +146,7 @@ public class DeducerHelper {
         reader.close();
 
         // if at least one of the required was missing, overwrite the pom file
-        if (!alreadyContainsExecPlugin || !alreadyContainsDBComponent)
+        if (!alreadyContainsExecPlugin)
             FileUtils.writeLines(pomFile, extendedPom);
     }
 

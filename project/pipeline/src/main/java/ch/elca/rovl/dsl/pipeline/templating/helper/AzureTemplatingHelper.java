@@ -57,12 +57,10 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     final String localSettingsVM = "vtemplates/azure/localsettings.vm";
     final String handlerVMDir = "vtemplates/azure/handler/";
     final String glueVMDir = "vtemplates/azure/glue/";
-    final String httpTriggerVM = "httptrigger.vm";
-    final String httpTriggerWithDBVM = "httptriggerwithdb.vm";
-    final String httpForGlueTriggerVM = "httptriggerforglue.vm";
-    final String httpForGlueTriggerWithDBVM = "httpgluewithdb.vm";
-    final String servicebusTriggerVM = "sbtrigger.vm";
-    final String servicebusTriggerWithDBVM = "sbtriggerwithdb.vm";
+    final String restHandlerVM = "rest.vm";
+    final String httpHandlerVM = "http.vm";
+    final String queueHandlerVM = "queue.vm";
+    final String forglueHandlerVM = "forglue.vm";
     final String glueHandlerVM = "gluehandler.vm";
     final String gluePomVM = "gluepom.vm";
 
@@ -304,40 +302,28 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         Template t;
 
         if (function.requiresGlue()) {
-            if (function.hasDatabaseOutput()) {
-                setDatabaseNamesInContext(function);
-                t = engine.getTemplate(handlerVMDir + httpForGlueTriggerWithDBVM);
-            } else {
-                t = engine.getTemplate(handlerVMDir + httpForGlueTriggerVM);
-            }
+            t = engine.getTemplate(handlerVMDir + forglueHandlerVM);
         } else {
             switch (function.getTriggerType()) {
                 case HTTP:
-                    // TODO get trigger
-                    FunctionHttpTrigger trigger = (FunctionHttpTrigger) function.getTrigger();
-                    setTriggerInContext(trigger);
-
-                    if (function.hasDatabaseOutput()) {
-                        setDatabaseNamesInContext(function);
-                        t = engine.getTemplate(handlerVMDir + httpTriggerWithDBVM);
+                    if (function.getTrigger() == null) {
+                        t = engine.getTemplate(handlerVMDir + httpHandlerVM);
                     } else {
-                        t = engine.getTemplate(handlerVMDir + httpTriggerVM);
+                        t = engine.getTemplate(handlerVMDir + restHandlerVM);
+                        setTriggerInContext((FunctionHttpTrigger) function.getTrigger());
                     }
                     break;
                 case QUEUE:
-                    if (function.hasDatabaseOutput()) {
-                        setDatabaseNamesInContext(function);
-                        t = engine.getTemplate(handlerVMDir + servicebusTriggerWithDBVM);
-                    } else {
-                        t = engine.getTemplate(handlerVMDir + servicebusTriggerVM);
-                    }
+                    t = engine.getTemplate(handlerVMDir + queueHandlerVM);
                     break;
                 case TIMER:
                 default:
                     fileWriter.close();
-                    throw new IllegalArgumentException("Unsupported trigger: " + function.getTriggerType());
+                    throw new IllegalArgumentException("Templating handler gen - unsupported trigger: " + function.getTriggerType());
             }
         }
+
+        setDatabaseNamesInContext(function);
 
         t.merge(context, fileWriter);
         fileWriter.flush();
@@ -369,8 +355,13 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
         boolean alreadyContainsJjwtApi = false;
         boolean alreadyContainsJjwtImpl = false;
         boolean alreadyContainsJjwtJackson = false;
+        boolean inDependencyMgmt = false;
 
         for (String line; (line = reader.readLine()) != null;) {
+            if (line.contains("<dependencyManagement>"))
+                inDependencyMgmt = true;
+            if (line.contains("</dependencyManagement>"))
+                inDependencyMgmt = false;
             if (line.contains("camel-quarkus-jdbc"))
                 alreadyContainsJDBC = true;
             if (line.contains("quarkus-jdbc-postgresql"))
@@ -387,6 +378,11 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
                 alreadyContainsJjwtImpl = true;
             if (line.contains("jjwt-jackson"))
                 alreadyContainsJjwtJackson = true;
+
+            if (inDependencyMgmt) {
+                modifiedPomContent.add(line);
+                continue;
+            }
 
             // add missing tags
             if (line.trim().startsWith("<modelVersion>")) {
@@ -471,10 +467,9 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
             FileUtils.writeStringToFile(appPropeties,
                     String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8", true);
         }
-        if (function.getTrigger() != null) {
-            FileUtils.writeStringToFile(appPropeties,
-                    String.format(TemplatingConstants.FUNCTION_PROPERTY, "trigger", function.getProvider()), "utf8", true);
-        }
+        // provider of this function
+        FileUtils.writeStringToFile(appPropeties,
+                String.format(TemplatingConstants.FUNCTION_PROPERTY, "trigger", function.getProvider()), "utf8", true);
     }
 
     /**
@@ -609,20 +604,27 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
     }
 
     /**
-     * Builds the list of output databases names and sets it in the context for the trigger
-     * template.
+     * Puts in the templating context values necessary to register databases in the camel context.
      * 
      * @param function
      */
     private void setDatabaseNamesInContext(LinkedFunction function) {
-        StringJoiner sj = new StringJoiner(", ");
-        for (LinkedResource lr : function.getOutput()) {
-            if (lr instanceof LinkedDatabase) {
-                sj.add("\"" + lr.getName() + "\"");
+        if (!function.hasDatabaseOutput()) {
+            context.put("dbImports", "");
+            context.put("registerDatabases", "");
+            context.put("datasourceMethod", "");
+        } else {
+            StringJoiner sj = new StringJoiner(", ");
+            for (LinkedResource lr : function.getOutput()) {
+                if (lr instanceof LinkedDatabase) {
+                    sj.add("\"" + lr.getName() + "\"");
+                }
             }
+            
+            context.put("dbImports", TemplatingConstants.AZURE_DB_IMPORTS);
+            context.put("registerDatabases", String.format(TemplatingConstants.AZURE_REGISTER_DBS, sj.toString()));
+            context.put("datasourceMethod", TemplatingConstants.AZURE_DATASOURCE_METHOD);
         }
-        String databaseList = "List.of(" + sj.toString() + ")";
-        context.put("databaseNames", databaseList);
     }
 
 }

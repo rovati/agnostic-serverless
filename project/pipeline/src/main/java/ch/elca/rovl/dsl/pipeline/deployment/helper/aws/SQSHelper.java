@@ -1,5 +1,8 @@
 package ch.elca.rovl.dsl.pipeline.deployment.helper.aws;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import software.amazon.awssdk.http.apache.ApacheHttpClient;
 import software.amazon.awssdk.services.sqs.SqsClient;
 import software.amazon.awssdk.services.sqs.model.CreateQueueRequest;
@@ -9,6 +12,8 @@ import software.amazon.awssdk.services.sqs.model.QueueAttributeName;
 import software.amazon.awssdk.services.sqs.model.QueueDoesNotExistException;
 
 public class SQSHelper {
+
+    static final Logger LOG = LoggerFactory.getLogger("Deployment (AWS)");
     
     SqsClient client;
 
@@ -25,9 +30,12 @@ public class SQSHelper {
      */
     public String getOrCreateQueue(String queueName) {
         try {
-            return client.getQueueUrl(GetQueueUrlRequest.builder()
+            String url = client.getQueueUrl(GetQueueUrlRequest.builder()
                     .queueName(queueName)
                     .build()).queueUrl();
+
+            LOG.info(String.format("Queue '%s' already exists, skipping provisioning.", queueName));
+            return url;
         } catch(QueueDoesNotExistException e) {
             return client.createQueue(CreateQueueRequest.builder()
                 .queueName(queueName)

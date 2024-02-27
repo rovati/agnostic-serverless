@@ -19,6 +19,7 @@ import com.azure.resourcemanager.postgresqlflexibleserver.models.Server;
 import com.azure.resourcemanager.resources.models.ResourceGroups;
 import com.azure.resourcemanager.servicebus.models.ServiceBusNamespace;
 import ch.elca.rovl.dsl.pipeline.deployment.DeploymentConstants;
+import ch.elca.rovl.dsl.pipeline.deployment.DeploymentEngine;
 import ch.elca.rovl.dsl.pipeline.deployment.UpdateInfo;
 import ch.elca.rovl.dsl.pipeline.deployment.accessinfo.database.DatabaseAccess;
 import ch.elca.rovl.dsl.pipeline.deployment.accessinfo.database.DatabaseRole;
@@ -75,7 +76,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
                     .withRegion(DeploymentConstants.AZURE_DEFAULT_REGION).create();
             LOG.info("Resource group is being created.");
         } else {
-            LOG.info("Resource group already exists.");
+            // LOG.info("Resource group already exists.");
         }
     }
 
@@ -88,12 +89,10 @@ public class AzureDeploymentHelper implements DeploymentHelper {
      */
     @Override
     public DeployedDatabase deploy(DeployableDatabase database) {
-        LOG.info(String.format("Deploying database '%s' on Azure...", database.getName()));
+        //LOG.info(String.format("Deploying database '%s' on Azure...", database.getName()));
         Server dbServer = flexServerHelper.getOrCreateServer(database);
-        // TODO support creation of multiple databases
         flexServerHelper.getOrCreateDatabase(dbServer, database.getName());
         // NOTE application level, this is left to user to do
-        // flexServerHelper.createSchema(db);
         // TODO for the time being give superuser to all functions that interact with db
         // DatabaseAccess roles = flexServerHelper.getRoles(db);
         DatabaseAccess roles = new DatabaseAccess();
@@ -114,31 +113,32 @@ public class AzureDeploymentHelper implements DeploymentHelper {
      */
     @Override
     public DeployedQueue deploy(DeployableQueue queue) {
-        LOG.info(String.format("Deploying queue '%s' on Azure...", queue.getName()));
+        //LOG.info(String.format("Deploying queue '%s' on Azure...", queue.getName()));
 
         // namespace creation
-        String namespace = queue.getName() + "-namespace";
-        LOG.info(String.format("Creating namespace '%s'", namespace));
+        // NOTE satisfy namespace name requirements
+        String namespace = queue.getName().replace("_", "-") + "-namespace";
+        // LOG.info(String.format("Creating namespace '%s'", namespace));
 
         ServiceBusNamespace ns;
 
         if (!serviceBusHelper.namespaceExists(namespace,
                 DeploymentConstants.AZURE_DEFAULT_RESOURCE_GROUP)) {
-            LOG.info("Triggering creation of namespace and queue...");
+            // LOG.info("Triggering creation of namespace and queue...");
             ns = serviceBusHelper.createNamespaceAndQueue(namespace, queue.getName());
         } else {
             LOG.info("Namespace already exists. Creating queue if missing...");
             ns = serviceBusHelper.createQueueIfMissing(namespace, queue.getName());
         }
 
-        LOG.info("Creating access rules...");
+        // LOG.info("Creating access rules...");
         ServiceBusQueueKeys keys = serviceBusHelper.createAccessKeys(ns);
 
         DeployedQueue deployed = new DeployedQueue(queue);
         deployed.setAccessInfo(
                 new AzureQueueAccess(keys.sendConnectionString(), keys.listenConnectionString()));
 
-        LOG.info(String.format("Queue '%s' successfully deployed.", queue.getName()));
+        // LOG.info(String.format("Queue '%s' successfully deployed.", queue.getName()));
         return deployed;
     }
 
@@ -151,7 +151,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
      */
     @Override
     public DeployedFunction deploy(DeployableFunction function) {
-        LOG.info(String.format("Deploying function '%s' on Azure...", function.getName()));
+        //LOG.info(String.format("Deploying function '%s' on Azure...", function.getName()));
 
         // deply
         String generateDir = function.getGeneratedPath();
@@ -186,10 +186,9 @@ public class AzureDeploymentHelper implements DeploymentHelper {
             }
 
             // generate shared secret key to authenticate infra-provider comm
-            if (function.getFunction().requiresGlue()) {
-                SecretKey key = Jwts.SIG.HS256.key().build();
-                access.setAuthKey(key);
-            }
+            SecretKey key = Jwts.SIG.HS256.key().build();
+            access.setAuthKey(key);
+            deployed.addRequiredData(new RequiredData(Type.SHARED_KEY, function.getFunction().getName()));
 
             deployed.setAccessInfo(access);
 
@@ -202,7 +201,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
         deployed.addRequiredData(function.getRequiredData());
         deployed.setFunctionApp(functionAppHelper.getFunctionApp(function.getCloudName()));
 
-        LOG.info(String.format("Deployment of '%s' completed.", function.getName()));
+        LOG.info(String.format("%s: Deployment completed.", function.getName()));
 
         return deployed;
     }
@@ -212,7 +211,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
      */
     @Override
     public void configureFunction(DeployedFunction function, UpdateInfo updateInfo) {
-        LOG.info(String.format("Finalizing configuration of function '%s'...", function.getName()));
+        //LOG.info(String.format("Finalizing configuration of function '%s'...", function.getName()));
         Map<String, String> settings = new HashMap<>();
 
         // gather configuration
@@ -258,6 +257,9 @@ public class AzureDeploymentHelper implements DeploymentHelper {
                     for (DeployedResource fn : resources) {
                         FunctionAccess access = (FunctionAccess) fn.getAccessInfo();
                         settings.put("FUNCTION_URL_" + fn.getName(), access.getUrl());
+                        String encodedKey =
+                            Base64.getEncoder().encodeToString(access.getAuthKey().getEncoded());
+                        settings.put("JWT_KEY_" + fn.getName(), encodedKey);
                     }
                     break;
                 case DATABASE_CONNECTION:
@@ -277,7 +279,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
                     FunctionAccess access = (FunctionAccess) dfn.getAccessInfo();
                     String encodedKey =
                             Base64.getEncoder().encodeToString(access.getAuthKey().getEncoded());
-                    settings.put("JWT_KEY", encodedKey);
+                    settings.put("JWT_KEY_" + dfn.getName(), encodedKey);
                     break;
                 default:
                     throw new IllegalArgumentException(
@@ -288,7 +290,7 @@ public class AzureDeploymentHelper implements DeploymentHelper {
         // update configuration
         function.setFunctionApp(
                 functionAppHelper.updateFunctionAppSettings(function.getFunctionApp(), settings));
-        LOG.info(String.format("Update successful", function.getName()));
+        //LOG.info(String.format("Update successful", function.getName()));
     }
 
     /**

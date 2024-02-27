@@ -1,4 +1,4 @@
-$package
+package $package;
 
 import java.io.File;
 import java.io.FileWriter;
@@ -17,13 +17,13 @@ import org.apache.camel.model.ToDefinition;
 public class EndpointExtractor {
     public static void main(String... args) throws Exception {
         try (CamelContext cc = new DefaultCamelContext()) {
-            FunctionRoute fr = new FunctionRoute();
-            cc.addRoutes(fr);
+            $handlerClass hc = new $handlerClass();
+            cc.addRoutes(hc);
 
             File outputFile = new File("endpoints.txt");
             FileWriter fw = new FileWriter(outputFile);
 
-            List<RouteDefinition> routes = fr.getRouteCollection().getRoutes();
+            List<RouteDefinition> routes = hc.getRouteCollection().getRoutes();
 
             Set<String> inputs = new HashSet<>();
             Set<String> outputs = new HashSet<>();

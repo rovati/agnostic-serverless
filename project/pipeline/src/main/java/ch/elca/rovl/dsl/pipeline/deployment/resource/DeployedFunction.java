@@ -65,6 +65,10 @@ public class DeployedFunction extends DeployedResource {
         return getFunction().getCloudName();
     }
 
+    public boolean requiresGlue() {
+        return getFunction().getFunction().requiresGlue();
+    }
+
     @Override
     public String toString() {
         return String.format("DeployedFunction[name=%s, cloud-name=%s, provider=%s]", getName(),

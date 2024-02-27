@@ -29,7 +29,7 @@ public class TriggerHandler implements RequestHandler<SQSEvent, SQSBatchResponse
         List<SQSBatchResponse.BatchItemFailure> batchItemFailures = new ArrayList<SQSBatchResponse.BatchItemFailure>();
         
         String targetUrl = System.getenv("FUNCTION_URL_$targetFunction");
-        String secretKeyStr = System.getenv("JWT_KEY");
+        String secretKeyStr = System.getenv("JWT_KEY_$targetFunction");
         
         // if failed to retrieve target function url, answer with full sqs batch failure
         if (targetUrl == null) {
@@ -59,7 +59,7 @@ public class TriggerHandler implements RequestHandler<SQSEvent, SQSBatchResponse
         for (SQSMessage message : event.getRecords()) {
             HttpPost post = new HttpPost(targetUrl);
             post.setEntity(new StringEntity(message.getBody()));
-            post.setHeader("authorization", "Bearer: " + jws);
+            post.setHeader("authorization", "Bearer " + jws);
 
             PostResult result;
             try {

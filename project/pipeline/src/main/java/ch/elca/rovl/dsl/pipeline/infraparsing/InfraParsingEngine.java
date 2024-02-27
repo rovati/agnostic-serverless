@@ -41,6 +41,9 @@ public class InfraParsingEngine {
         // parse and validate function definitions
         Map<String, FluentFunctionBuilder> functionBuilders = sysReg.getFunctionBuilders();
         for (String fnName : functionBuilders.keySet()) {
+            if (fnName.contains("-")) {
+                throw new IllegalStateException("Resource names cannot contain '-': " + fnName);
+            }
             FluentFunctionBuilder ffb = functionBuilders.get(fnName);
             ffb.validate();
             functions.put(fnName, DslFunction.fromApiFunction(ffb.build()));
@@ -49,6 +52,9 @@ public class InfraParsingEngine {
         // parse and validate queue definitions
         Map<String, FluentQueueBuilder> queueBuilders = sysReg.getQueueBuilders();
         for (String qName : queueBuilders.keySet()) {
+            if (qName.contains("-")) {
+                throw new IllegalStateException("Resource names cannot contain '-': " + qName);
+            }
             FluentQueueBuilder fqb = queueBuilders.get(qName);
             fqb.validate();
             queues.put(qName, DslQueue.fromApiQueue(fqb.build()));
@@ -57,6 +63,9 @@ public class InfraParsingEngine {
         // parse and validate databases
         Map<String, FluentDatabaseBuilder> dbBuilders = sysReg.getDatabaseBuilders();
         for (String dbName : dbBuilders.keySet()) {
+            if (dbName.contains("-")) {
+                throw new IllegalStateException("Resource names cannot contain '-': " + dbName);
+            }
             FluentDatabaseBuilder fdb = dbBuilders.get(dbName);
             fdb.validate();
             databases.put(dbName, DslDatabase.fromApiDatabase(fdb.build()));

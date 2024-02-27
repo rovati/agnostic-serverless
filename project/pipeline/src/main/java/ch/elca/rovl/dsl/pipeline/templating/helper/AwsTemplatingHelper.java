@@ -24,13 +24,14 @@ import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedQueue;
 import ch.elca.rovl.dsl.pipeline.linking.resource.LinkedResource;
 import ch.elca.rovl.dsl.pipeline.templating.ResourceNameMemory;
 import ch.elca.rovl.dsl.pipeline.templating.TemplatingConstants;
+import ch.elca.rovl.dsl.pipeline.templating.TemplatingEngine;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableFunction;
 import ch.elca.rovl.dsl.pipeline.util.IdGenerator;
 import ch.elca.rovl.dsl.pipeline.util.Provider;
 import ch.elca.rovl.dsl.pipeline.util.RequiredData.Type;
 
 /**
- * Helper class of {@link TemalatingEngine TemplatingEngine} to generate
+ * Helper class of {@link TemplatingEngine TemplatingEngine} to generate
  * function projects that can
  * be built and deployed on AWS.
  */
@@ -49,12 +50,10 @@ public class AwsTemplatingHelper implements TemplatingHelper {
     final String dfLegacyJarVM = "aws-df-legacy-jar.vm";
     final String dfNativeVM = "aws-df-native.vm";
     final String dfNativeMicroVM = "aws-df-native-micro.vm";
-    final String httpTriggerVM = "apihttptrigger.vm";
-    final String httpTriggerWithDBVM = "apihttptriggerwithdb.vm";
-    final String httpForGlueTriggerVM = "httptriggerforglue.vm";
-    final String httpForGlueTriggerWithDBVM = "httpgluewithdb.vm";
-    final String queueTriggerVM = "sqstrigger.vm";
-    final String queueTriggerWithDBVM = "sqstriggerwithdb.vm";
+    final String restHandlerVM = "rest.vm";
+    final String functionUrlHandlerVM = "functionurl.vm";
+    final String queueHandlerVM = "queue.vm";
+    final String forglueHandlerVM = "forglue.vm";
     final String glueHandlerVM = "gluehandler.vm";
     final String gluePomVM = "gluepom.vm";
 
@@ -328,36 +327,27 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         Template t;
 
         if (function.requiresGlue()) {
-            if (function.hasDatabaseOutput()) {
-                setDatabaseSourcesInContext(function);
-                t = engine.getTemplate(triggerTemplatesDir + httpForGlueTriggerWithDBVM);
-            } else {
-                t = engine.getTemplate(triggerTemplatesDir + httpForGlueTriggerVM);
-            }
+            t = engine.getTemplate(triggerTemplatesDir + forglueHandlerVM);
         } else {
             switch (function.getTriggerType()) {
                 case HTTP:
-                    if (function.hasDatabaseOutput()) {
-                        setDatabaseSourcesInContext(function);
-                        t = engine.getTemplate(triggerTemplatesDir + httpTriggerWithDBVM);
+                    if (function.getTrigger() == null) {
+                        t = engine.getTemplate(triggerTemplatesDir + functionUrlHandlerVM);
                     } else {
-                        t = engine.getTemplate(triggerTemplatesDir + httpTriggerVM);
+                        t = engine.getTemplate(triggerTemplatesDir + restHandlerVM);
                     }
                     break;
                 case QUEUE:
-                    if (function.hasDatabaseOutput()) {
-                        setDatabaseSourcesInContext(function);
-                        t = engine.getTemplate(triggerTemplatesDir + queueTriggerWithDBVM);
-                    } else {
-                        t = engine.getTemplate(triggerTemplatesDir + queueTriggerVM);
-                    }
+                    t = engine.getTemplate(triggerTemplatesDir + queueHandlerVM);
                     break;
-                case TIMER: // TODO
+                case TIMER:
                 default:
                     fileWriter.close();
                     throw new IllegalArgumentException("Unsupported trigger: " + function.getTriggerType());
             }
         }
+
+        setDatabaseSourcesInContext(function);
 
         t.merge(context, fileWriter);
         fileWriter.flush();
@@ -390,8 +380,13 @@ public class AwsTemplatingHelper implements TemplatingHelper {
         boolean alreadyContainsJjwtApi = false;
         boolean alreadyContainsJjwtImpl = false;
         boolean alreadyContainsJjwtJackson = false;
+        boolean inDependencyMgmt = false;
 
         for (String line; (line = reader.readLine()) != null;) {
+            if (line.contains("<dependencyManagement>"))
+                inDependencyMgmt = true;
+            if (line.contains("</dependencyManagement>"))
+                inDependencyMgmt = false;
             if (line.contains("camel-quarkus-jdbc"))
                 alreadyContainsJDBC = true;
             if (line.contains("quarkus-jdbc-postgresql"))
@@ -400,6 +395,8 @@ public class AwsTemplatingHelper implements TemplatingHelper {
                 alreadyContainsCommmonsDBCP = true;
             if (line.contains("commons-pool"))
                 alreadyContainsCommonsPool = true;
+            if (line.contains("jackson-jr-objects"))
+                alreadyContainsJackson = true;
             if (line.contains("jjwt-api"))
                 alreadyContainsJjwtApi = true;
             if (line.contains("jjwt-impl"))
@@ -407,10 +404,15 @@ public class AwsTemplatingHelper implements TemplatingHelper {
             if (line.contains("jjwt-jackson"))
                 alreadyContainsJjwtJackson = true;
 
+            if (inDependencyMgmt) {
+                modifiedPomContent.add(line);
+                continue;
+            }
+
             // if line is model version, append parent tag
             if (line.trim().startsWith("<modelVersion>")) {
                 modifiedPomContent.addAll(parentTag);
-            } else if (line.trim().startsWith("</dependencies>")) {
+            } else if (line.trim().startsWith("</dependencies>") && !inDependencyMgmt) {
                 if (addDBDependencies) {
                     if (!alreadyContainsJDBC) {
                         modifiedPomContent.addAll(TemplatingConstants.JDBC_TAG);
@@ -429,7 +431,6 @@ public class AwsTemplatingHelper implements TemplatingHelper {
                 if (addJacksonDependencies && !alreadyContainsJackson) {
                     modifiedPomContent.addAll(TemplatingConstants.JACKSON_TAG);
                 }
-
                 if (addJwtDependencies) {
                     if (!alreadyContainsJjwtApi) {
                         modifiedPomContent.addAll(TemplatingConstants.JJWT_API_TAG);
@@ -441,6 +442,7 @@ public class AwsTemplatingHelper implements TemplatingHelper {
                         modifiedPomContent.addAll(TemplatingConstants.JJWT_JACKSON_TAG);
                     }
                 }
+
             }
 
             modifiedPomContent.add(line);
@@ -493,10 +495,10 @@ public class AwsTemplatingHelper implements TemplatingHelper {
             FileUtils.writeStringToFile(appPropeties,
                     String.format(TemplatingConstants.QUEUE_PROPERTY, inputQ.getName(), function.getProvider()), "utf8", true);
         }
-        if (function.getTrigger() != null) {
-            FileUtils.writeStringToFile(appPropeties,
-                    String.format(TemplatingConstants.FUNCTION_PROPERTY, "trigger", function.getProvider()), "utf8", true);
-        }
+        // provider of this function
+        FileUtils.writeStringToFile(appPropeties,
+                String.format(TemplatingConstants.FUNCTION_PROPERTY, "trigger", function.getProvider()), "utf8", true);
+
     }
 
     /**
@@ -599,26 +601,30 @@ public class AwsTemplatingHelper implements TemplatingHelper {
 
     /**
      * Builds the DataSource producers for the output databases to be put in trigger
-     * handler
-     * template.
+     * handler template.
      * 
      * @param function
      */
     private void setDatabaseSourcesInContext(LinkedFunction function) {
-        List<String> databases = new ArrayList<>();
-        for (LinkedResource lr : function.getOutput()) {
-            if (lr instanceof LinkedDatabase) {
-                databases.add(lr.getName());
+        if (!function.hasDatabaseOutput()) {
+            context.put("dbImports", "");
+            context.put("databaseSources", "");
+        } else {
+            List<String> databases = new ArrayList<>();
+            for (LinkedResource lr : function.getOutput()) {
+                if (lr instanceof LinkedDatabase) {
+                    databases.add(lr.getName());
+                }
             }
+            StringJoiner sj = new StringJoiner("\n");
+            for (String dbName : databases) {
+                sj.add(String.format(TemplatingConstants.AWS_DB_DATASOURCE_BLOCK, dbName, dbName,
+                dbName, dbName, dbName));
+            }
+            
+            context.put("dbImports", TemplatingConstants.AWS_DB_IMPORTS);
+            context.put("databaseSources", sj.toString());
         }
-
-        StringJoiner sj = new StringJoiner("\n");
-        for (String dbName : databases) {
-            sj.add(String.format(TemplatingConstants.AWS_DB_DATASOURCE_BLOCK, dbName, dbName,
-                    dbName, dbName, dbName));
-        }
-
-        context.put("databaseSources", sj.toString());
     }
 
 }

@@ -29,4 +29,5 @@ public class DeploymentConstants {
     public static final String AWS_DB_SUBNET_ONE_CIDR = "10.180.0.64/28";
     public static final String AWS_DB_SUBNET_TWO_CIDR = "10.180.0.80/28";
     public static final String AWS_LAMBDA_VPC_POLICY = "LambdaJoinVpcPolicy";
+    public static final int AWS_LAMBDA_TIMEOUT = 20;
 }

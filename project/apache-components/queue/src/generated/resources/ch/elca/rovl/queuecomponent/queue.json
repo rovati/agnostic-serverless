@@ -11,7 +11,7 @@
     "supportLevel": "Preview",
     "groupId": "ch.elca.rovl.agnostic-serverless",
     "artifactId": "camel-queue",
-    "version": "1.0.0",
+    "version": "1.0.0-SNAPSHOT",
     "scheme": "queue",
     "extendsScheme": "",
     "syntax": "queue:name",

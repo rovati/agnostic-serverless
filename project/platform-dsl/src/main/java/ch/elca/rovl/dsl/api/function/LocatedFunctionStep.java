@@ -9,8 +9,8 @@ public class LocatedFunctionStep {
         this.ffb = ffb;
     }
 
-    public ConfigurableFunctionStep runtime(FunctionRuntime runtime) {
+    public HandlerFunctionStep runtime(FunctionRuntime runtime) {
         ffb.withFunctionRuntime(runtime);
-        return new ConfigurableFunctionStep(ffb);
+        return new HandlerFunctionStep(ffb);
     }
 }

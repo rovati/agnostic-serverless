@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ch.elca.rovl.dsl.pipeline.deployment.DeploymentConstants;
 import ch.elca.rovl.dsl.pipeline.templating.resource.DeployableFunction;
 import ch.elca.rovl.dsl.pipeline.util.Constants;
 import software.amazon.awssdk.arns.Arn;
@@ -148,18 +149,31 @@ public class LambdaHelper {
             Thread.sleep(10000);
             // update configuration
             lambdaClient.updateFunctionConfiguration(UpdateFunctionConfigurationRequest.builder()
-                    .handler(handlerMethod).functionName(function.getCloudName())
-                    .runtime(Runtime.JAVA17).role(lambdaRoleArn).timeout(10).build());
+                    .handler(handlerMethod)
+                    .functionName(function.getCloudName())
+                    .runtime(Runtime.JAVA17)
+                    .role(lambdaRoleArn)
+                    .timeout(DeploymentConstants.AWS_LAMBDA_TIMEOUT)
+                    .build());
 
             return functionArn;
 
         } catch (ResourceNotFoundException e) {
             // create lambda
             return lambdaClient.createFunction(CreateFunctionRequest.builder()
-                    .functionName(function.getCloudName()).packageType(PackageType.ZIP)
-                    .code(FunctionCode.builder().s3Bucket(bucketName).s3Key(bucketKey).build())
-                    .role(lambdaRoleArn).handler(handlerMethod).runtime(Runtime.JAVA17)
-                    .architectures(Architecture.X86_64).timeout(15).build()).functionArn();
+                    .functionName(function.getCloudName())
+                    .packageType(PackageType.ZIP)
+                    .code(FunctionCode.builder()
+                        .s3Bucket(bucketName)
+                        .s3Key(bucketKey)
+                        .build())
+                    .role(lambdaRoleArn)
+                    .handler(handlerMethod)
+                    .runtime(Runtime.JAVA17)
+                    .architectures(Architecture.X86_64)
+                    .timeout(DeploymentConstants.AWS_LAMBDA_TIMEOUT)
+                    .build())
+                .functionArn();
         }
     }
 
@@ -223,12 +237,13 @@ public class LambdaHelper {
                                 .environment(Environment.builder().variables(envVars).build()).build());
             } catch (ResourceConflictException e) {
                 tries++;
-                LOG.warn(String.format("Resource config when adding env vars to lambda '%s'. Retrying in a while...", functionName));
-                Thread.sleep(10000);
+                LOG.warn(String.format("lambda '%s' not ready for config update. Retrying in a while...", functionName));
+                Thread.sleep(20000);
                 continue;
             }
             return;
         }
+        LOG.error("Could not update configuration for Lambda " + functionName + "!");
     }
 
     /**

@@ -9,12 +9,14 @@ public final class Function extends Resource {
 
     private final String projectPath;
     private final FunctionRuntime runtime;
+    private final String handler;
     private final Map<FunctionConfigType, Object> config;
 
-    public Function(String name, String projectPath, FunctionRuntime runtime) {
+    public Function(String name, String projectPath, FunctionRuntime runtime, String handler) {
         super(name);
         this.projectPath = projectPath;
         this.runtime = runtime;
+        this.handler = handler;
         this.config = new HashMap<>();
     }
 
@@ -28,6 +30,10 @@ public final class Function extends Resource {
 
     public FunctionRuntime getRuntime() {
         return runtime;
+    }
+
+    public String getHandler() {
+        return handler;
     }
 
     public Map<FunctionConfigType, Object> getConfig() {

@@ -79,7 +79,7 @@ public final class DeployableFunction extends DeployableResource {
     @Override
     public String toString() {
         return String.format(
-                "DeployableFunction[name=%s, provider=%s, cloud-name=%s, required-data=%s]", getName(),
-                getProvider(), cloudName, requiredData);
+                "DeployableFunction[name=%s, provider=%s, cloud-name=%s]", getName(),
+                getProvider(), cloudName);
     }
 }

@@ -173,15 +173,15 @@ public class AwsDeploymentHelper implements DeploymentHelper {
      */
     @Override
     public DeployedFunction deploy(DeployableFunction function) throws InterruptedException {
-        String bucketKey = function.getCloudName() + "-zip";
+        String bucketKey = function.getCloudName() + ".zip";
 
-        LOG.info(String.format("%s: Generating zip...", function.getName()));
+        //LOG.info(String.format("%s: Generating zip...", function.getName()));
 
         // generate zip and upload to s3
         File zipFile = lambdaHelper.generateLambdaZip(function);
         lambdaHelper.uploadZip(bucketKey, zipFile);
 
-        LOG.info(String.format("%s: Creating execution role for Lambda...", function.getName()));
+        //LOG.info(String.format("%s: Creating execution role for Lambda...", function.getName()));
 
         String roleName = function.getCloudName() + DeploymentConstants.AWS_LAMBDA_ROLE_POSTFIX;
         String roleArn = iamHelper.getOrCreateRole(roleName, lambdaAssume);
@@ -206,7 +206,12 @@ public class AwsDeploymentHelper implements DeploymentHelper {
             } else {
                 switch (function.getFunction().getTriggerType()) {
                     case HTTP:
-                        String functionUrl = createRestIntegration(function, lambdaArn);
+                    String functionUrl;
+                        if (function.getFunction().getTrigger() != null) {
+                            functionUrl = createRestIntegration(function, lambdaArn);
+                        } else {
+                            functionUrl = lambdaHelper.getOrCreateFunctionUrl(function.getCloudName());
+                        }
                         access.setUrl(functionUrl);
                         break;
                     case QUEUE:
@@ -221,10 +226,9 @@ public class AwsDeploymentHelper implements DeploymentHelper {
             }
 
             // generate shared secret key to authenticate infra-provider comm
-            if (function.getFunction().requiresGlue()) {
-                SecretKey key = Jwts.SIG.HS256.key().build();
-                access.setAuthKey(key);
-            }
+            SecretKey key = Jwts.SIG.HS256.key().build();
+            access.setAuthKey(key);
+            dfn.addRequiredData(new RequiredData(Type.SHARED_KEY, function.getFunction().getName()));
 
             dfn.setAccessInfo(access);
 
@@ -247,7 +251,7 @@ public class AwsDeploymentHelper implements DeploymentHelper {
     @Override
     public void configureFunction(DeployedFunction function, UpdateInfo updateInfo)
             throws InterruptedException {
-        LOG.info(String.format("Finalizing configuration of function '%s'...", function.getName()));
+        // LOG.info(String.format("Finalizing configuration of function '%s'...", function.getName()));
         // get function role
         String roleName = lambdaHelper.getRoleNameOfFunction(function.getCloudName());
 
@@ -315,6 +319,9 @@ public class AwsDeploymentHelper implements DeploymentHelper {
                     for (DeployedResource fn : resources) {
                         FunctionAccess access = (FunctionAccess) fn.getAccessInfo();
                         envVars.put("FUNCTION_URL_" + fn.getName(), access.getUrl());
+                        String encodedKey =
+                            Base64.getEncoder().encodeToString(access.getAuthKey().getEncoded());
+                        envVars.put("JWT_KEY_" + fn.getName(), encodedKey);
                     }
                     break;
                 case DATABASE_CONNECTION:
@@ -358,13 +365,15 @@ public class AwsDeploymentHelper implements DeploymentHelper {
                     FunctionAccess access = (FunctionAccess) dfn.getAccessInfo();
                     String encodedKey =
                             Base64.getEncoder().encodeToString(access.getAuthKey().getEncoded());
-                    envVars.put("JWT_KEY", encodedKey);
+                    envVars.put("JWT_KEY_" + dfn.getName(), encodedKey);
+                    break;
                 default:
                     close();
                     throw new IllegalArgumentException(
                             String.format("Type '%s' not supported.", type));
             }
         }
+
 
         // add env vars to function
         lambdaHelper.addEnvVarsToFunction(function.getCloudName(), envVars);

@@ -134,7 +134,7 @@ public final class LinkerEngine {
                         return;
                     }
                     try {
-                        deducerHelper.addEndpointExtractor(rootDir);
+                        deducerHelper.addEndpointExtractor(rootDir, fn.getFunction().getHandler());
                     } catch (IOException e) {
                         LOG.error("Failed to add extractor to project.");
                         e.printStackTrace();
@@ -414,7 +414,7 @@ public final class LinkerEngine {
      * @param output
      */
     private void validateAWSLink(LinkedResource fn, LinkedResource output) {
-        if (output.getProvider() == Provider.AWS && fn.getProvider() != Provider.AWS) {
+        if (output instanceof LinkedDatabase && output.getProvider() == Provider.AWS && fn.getProvider() != Provider.AWS) {
             throw new UnsupportedOperationException(String.format(
                     "Function '%s' has to be deployed on AWS to be able to interact with database '%s' on AWS.",
                     fn.getName(), output.getName()));

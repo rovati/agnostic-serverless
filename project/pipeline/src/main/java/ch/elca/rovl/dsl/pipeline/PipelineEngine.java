@@ -15,6 +15,7 @@ import ch.elca.rovl.dsl.PlatformResourcesDefinition;
 import ch.elca.rovl.dsl.pipeline.debugging.DebuggingEngine;
 import ch.elca.rovl.dsl.pipeline.deployment.DeploymentEngine;
 import ch.elca.rovl.dsl.pipeline.deployment.accessinfo.function.FunctionAccess;
+import ch.elca.rovl.dsl.pipeline.deployment.resource.DeployedFunction;
 import ch.elca.rovl.dsl.pipeline.deployment.resource.DeployedResource;
 import ch.elca.rovl.dsl.pipeline.infraparsing.InfraParsingEngine;
 import ch.elca.rovl.dsl.pipeline.infraparsing.resource.DslDatabase;
@@ -187,7 +188,6 @@ public class PipelineEngine {
         DeploymentEngine de = runActionAndCatch(() -> new DeploymentEngine(deployableResources),
                 Map.of(IOException.class, "Failed to parse memory file"));
 
-        LOG.info("Deploying databases...");
         runActionAndCatch(() -> {
             de.deployDatabases();
             return null;
@@ -195,14 +195,12 @@ public class PipelineEngine {
                 "Failed to deploy databases!", InterruptedException.class,
                 "Failed to deploy databases!"));
 
-        LOG.info("Deploying queues...");
         runActionAndCatch(() -> {
             de.deployQueues();
             return null;
         }, Map.of(IOException.class, "Failed to deploy queues!", URISyntaxException.class,
                 "Failed to deploy queues!"));
 
-        LOG.info("Deploying functions...");
         runActionAndCatch(() -> {
             de.deployFunctions();
             return null;
@@ -217,9 +215,10 @@ public class PipelineEngine {
                         IOException.class, "Failed to configure deployed resources!",
                         URISyntaxException.class, "Failed to configure deployed resources!"));
 
+        LOG.info("");
+        LOG.info("###");
         printElapsedTime(startTime, "Application successfully deployed.");
 
-        LOG.info("###");
         LOG.info("Resources:");
         for (ResourceType type : finalResources.keySet()) {
             List<DeployedResource> resources = finalResources.get(type);
@@ -229,9 +228,12 @@ public class PipelineEngine {
                     LOG.info(String.format("\t\t- %s (cloud resource name: %s)", dr.getName(),
                             dr.getCloudName()));
                     if (type == ResourceType.FUNCTION) {
-                        FunctionAccess fnAccess = ((FunctionAccess) dr.getAccessInfo());
-                        if (fnAccess != null && fnAccess.getUrl() != null) {
-                            LOG.info(String.format("\t\t\turl: %s", fnAccess.getUrl()));
+                        DeployedFunction dfn = (DeployedFunction) dr;
+                        if (dfn.getFunction().getFunction().getTrigger() != null) {
+                            FunctionAccess fnAccess = ((FunctionAccess) dr.getAccessInfo());
+                            if (fnAccess != null && fnAccess.getUrl() != null) {
+                                LOG.info(String.format("\t\t\turl: %s", fnAccess.getUrl()));
+                            }
                         }
                     }
                 }

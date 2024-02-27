@@ -24,6 +24,10 @@ public class ProviderParser {
         BufferedReader reader = new BufferedReader(new FileReader(providersFile));
         
         for (String line; (line = reader.readLine()) != null;) {
+            // ignore comments
+            if (line.trim().startsWith("#"))
+                continue;
+
             int separatorIdx = line.indexOf('=');
             if (separatorIdx == -1 || separatorIdx == line.length() - 1) {
                 reader.close();

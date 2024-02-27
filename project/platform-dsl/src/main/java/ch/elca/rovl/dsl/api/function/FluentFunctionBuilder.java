@@ -13,11 +13,11 @@ public class FluentFunctionBuilder implements FluentResourceBuilder {
     String name;
     String pathToProject;
     FunctionRuntime runtime;
-    
+    String handler;
+
     // optional
     FunctionTrigger trigger = null;
     int execTimeoutSeconds = -1;
-    
 
     protected FluentFunctionBuilder(String name) {
         this.name = name;
@@ -30,6 +30,11 @@ public class FluentFunctionBuilder implements FluentResourceBuilder {
 
     protected FluentFunctionBuilder withFunctionRuntime(FunctionRuntime runtime) {
         this.runtime = runtime;
+        return this;
+    }
+
+    protected FluentFunctionBuilder withHandler(String handler) {
+        this.handler = handler;
         return this;
     }
 
@@ -53,22 +58,33 @@ public class FluentFunctionBuilder implements FluentResourceBuilder {
 
         if (pathToProject == null || pathToProject.isEmpty())
             throw new IllegalStateException(String.format(
-                "Function '%s' is missing the mandatory field 'path to project'", name));
+                    "Function '%s' is missing the mandatory field 'path to project'", name));
 
         File proj = new File(pathToProject);
         if (!proj.exists())
             throw new IllegalStateException(String.format(
-                "The specified project path for function '%s' does not exist.", name));
+                    "The specified project path for function '%s' does not exist.", name));
 
         if (runtime == null)
             throw new IllegalStateException(String.format(
-                "Function '%s' is missing the mandatory field 'runtime'.", name));
+                    "Function '%s' is missing the mandatory field 'runtime'.", name));
+
+        if (handler == null)
+            throw new IllegalStateException(String.format(
+                    "Function '%s' is missing the mandatory field 'handler'.", name));
+
+        // just to avoid silly mistakes
+        String[] splitHandler = handler.split("[.]");
+        if (splitHandler.length > 0 && splitHandler[splitHandler.length - 1].equals("java")) {
+            throw new IllegalStateException(
+                    String.format("The handler of function '%s' should not contain tile extensions.", name));
+        }
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public Function build() {
-        Function fn = new Function(name, pathToProject, runtime);
+        Function fn = new Function(name, pathToProject, runtime, handler);
 
         if (execTimeoutSeconds > 0) {
             fn.addConfig(FunctionConfigType.EXEC_TIMEOUT, execTimeoutSeconds);
@@ -80,5 +96,5 @@ public class FluentFunctionBuilder implements FluentResourceBuilder {
 
         return fn;
     }
-    
+
 }

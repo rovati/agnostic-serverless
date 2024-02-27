@@ -1,0 +1,134 @@
+package $package;
+
+import java.util.Base64;
+import java.util.HashMap;
+import java.util.Map;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
+import java.io.IOException;
+
+import org.apache.camel.CamelContext;
+import org.apache.camel.ProducerTemplate;
+import org.apache.camel.Exchange;
+
+import com.amazonaws.services.lambda.runtime.Context;
+import com.amazonaws.services.lambda.runtime.RequestHandler;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPEvent;
+import com.amazonaws.services.lambda.runtime.events.APIGatewayV2HTTPResponse;
+
+import com.fasterxml.jackson.jr.ob.JSON;
+import com.fasterxml.jackson.jr.ob.JSONObjectException;
+
+import ch.elca.rovl.queuecomponent.QueueEndpoint;
+
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.security.SignatureException;
+
+import jakarta.inject.Inject;
+
+$dbImports
+
+
+public class TriggerHandler implements RequestHandler
+        <APIGatewayV2HTTPEvent, APIGatewayV2HTTPResponse> {
+
+    @Inject
+    CamelContext camelContext;
+    @Inject
+    ProducerTemplate template;
+
+$databaseSources
+
+    @Override
+    public APIGatewayV2HTTPResponse handleRequest(
+            APIGatewayV2HTTPEvent event, Context context) {
+        context.getLogger().log("Lambda triggered! api gateway http event");
+        APIGatewayV2HTTPResponse response = new APIGatewayV2HTTPResponse();
+
+        /* AUTHORIZATION CHECK */
+        String secretKeyStr = System.getenv("JWT_KEY");
+        if (secretKeyStr == null) {
+            response.setStatusCode(500);
+            response.setBody("Couldn't load jwt key.");
+            return response;
+        }
+        byte[] decodedKey = Base64.getDecoder().decode(secretKeyStr);
+        SecretKey key = new SecretKeySpec(decodedKey, 0, decodedKey.length, "HmacSHA256");
+
+        String token = event.getHeaders().get("authorization").replace("Bearer ", "");
+
+        try {
+            boolean matches = Jwts.parser().verifyWith(key).build()
+                .parseSignedClaims(token).getPayload()
+                .getSubject().equals("$functionName");
+
+            if (!matches) {
+                response.setStatusCode(403);
+                response.setBody("Subject of token does not match.");
+                return response;
+            }
+        } catch(SignatureException e) {
+            response.setStatusCode(403);
+            response.setBody(e.getMessage());
+            return response;
+        }
+
+
+        String body = event.getBody();
+        if (event.getIsBase64Encoded()) {
+            context.getLogger().log("Decoding body from base64.");
+            body = new String(Base64.getDecoder().decode(body));
+        }
+        context.getLogger().log(String.format("event body: \'%s\'", body));
+
+        // create local endpoint to push exchange to route
+        QueueEndpoint endpoint = camelContext.getEndpoint("queue://$queueName", QueueEndpoint.class);
+        endpoint.setUseDirectProducer(true);
+        // create exchange with message content
+        Exchange exchange = endpoint.createExchange();
+        try {
+            deserializeExchange(exchange, body);
+        } catch(IOException e) {
+            context.getLogger().log("Failed to deserialized Exchange.");
+            context.getLogger().log(e.getMessage());
+            response.setStatusCode(500);
+            response.setBody(e.getMessage());
+            return response;
+        }
+
+        Exchange out = template.send(endpoint, exchange);
+
+        // if exchange processing has exception, mark message as failed
+        if (out.isFailed()) {
+            context.getLogger().log(out.getException().getMessage());
+            response.setStatusCode(500);
+            response.setBody(out.getException().getMessage());
+            return response;
+        }
+        
+        context.getLogger().log("Event correctly processed.");
+        response.setStatusCode(200);
+        response.setBody("OK.");
+
+        return response;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void deserializeExchange(Exchange ex, String serialized) throws JSONObjectException, IOException  {
+        Map<String, Object> content = JSON.std.with(JSON.Feature.PRETTY_PRINT_OUTPUT)
+            .beanFrom(HashMap.class, serialized);
+
+        String body = (String) content.get("body");
+        Map<String,Object> properties = (Map<String,Object>) content.get("properties");
+        Map<String,Object> headers = (Map<String,Object>) content.get("headers");
+
+        ex.getIn().setBody(body);
+        for (String key : properties.keySet()) {
+            ex.setProperty(key, properties.get(key));
+        }
+        for (String key : headers.keySet()) {
+            ex.getIn().setHeader(key, headers.get(key));
+        }
+    }
+}

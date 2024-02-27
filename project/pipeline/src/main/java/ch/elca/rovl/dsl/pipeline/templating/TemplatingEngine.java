@@ -163,7 +163,7 @@ public final class TemplatingEngine {
         List<DeployableFunction> deployableFunctions = new ArrayList<>();
 
         for (LinkedFunction fn : functions) {
-            LOG.info(String.format("Generating function %s...", fn.toString()));
+            //LOG.info(String.format("Generating function %s...", fn.toString()));
             // generate project for the target provider
             DeployableFunction dfn = helperFactory.getHelper(fn.getProvider()).generateFunction(fn);
             deployableFunctions.add(dfn);

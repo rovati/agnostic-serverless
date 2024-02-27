@@ -40,6 +40,12 @@ public class TemplatingConstants {
     public static final String APP_PROPERTIES_NAME = "application.properties";
     public static final String HANDLER_NAME = "TriggerHandler.java";
 
+    public static final String AWS_DB_IMPORTS = """
+        import org.apache.commons.dbcp.BasicDataSource;
+        import jakarta.inject.Named;
+        import jakarta.enterprise.inject.Produces;
+        """;
+
     public static final String AWS_DB_DATASOURCE_BLOCK = """
         \t@Produces
         \t@Named("%s")
@@ -54,4 +60,27 @@ public class TemplatingConstants {
         \t}
         """;
 
+    public static final String AZURE_DB_IMPORTS = """
+        import org.apache.commons.dbcp.BasicDataSource;
+        import java.util.List;
+            """;
+
+    public static final String AZURE_REGISTER_DBS = """
+        \t\t\tList<String> dbs = List.of(%s);
+        \t\t\tfor (String dbName : dbs) {
+        \t\t\t\tcamelContext.getRegistry().bind(dbName, setupDataSource(dbName));
+        \t\t\t}
+            """;
+
+    public static final String AZURE_DATASOURCE_METHOD = """
+        \tprivate static BasicDataSource setupDataSource(String dbName) {
+        \t\tBasicDataSource ds = new BasicDataSource();
+        \t\tds.setUsername(System.getenv("PSQL_USER_" + dbName));
+        \t\tds.setDriverClassName("org.postgresql.Driver");
+        \t\tds.setPassword(System.getenv("PSQL_PWD_" + dbName));
+        \t\tds.setUrl(System.getenv("PSQL_URL_" + dbName));
+        \t\tds.addConnectionProperty("sslmode", "require");
+        \t\treturn ds;
+        \t}
+            """;
 }

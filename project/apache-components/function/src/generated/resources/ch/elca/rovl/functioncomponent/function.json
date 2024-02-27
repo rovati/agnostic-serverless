@@ -11,7 +11,7 @@
     "supportLevel": "Preview",
     "groupId": "ch.elca.rovl.agnostic-serverless",
     "artifactId": "camel-function",
-    "version": "1.0.0-SNAPSHOT",
+    "version": "1.0.2-SNAPSHOT",
     "scheme": "function",
     "extendsScheme": "",
     "syntax": "function:name",

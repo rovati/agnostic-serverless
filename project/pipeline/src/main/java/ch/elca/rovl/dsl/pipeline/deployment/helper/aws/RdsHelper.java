@@ -104,7 +104,7 @@ public class RdsHelper {
                 result.add(vpcGroup.vpcSecurityGroupId());
             }
 
-            LOG.info(String.format("Database '%s' already exists. Skipping deployment.", db.getName()));
+            LOG.info(String.format("Database '%s' already exists, skipping provisioning.", db.getName()));
         } catch (DbInstanceNotFoundException e) {
             // TODO change settings based on db config
             // create db

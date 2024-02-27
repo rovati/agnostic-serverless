@@ -31,7 +31,7 @@ public class TriggerHandler {
         context.getLogger().info("Java ServiceBus trigger processed a request.");
 
         String targetUrl = System.getenv("FUNCTION_URL_$targetFunction");
-        String secretKeyStr = System.getenv("JWT_KEY");
+        String secretKeyStr = System.getenv("JWT_KEY_$targetFunction");
         
         // if failed to retrieve target function url, answer with message processing failure
         if (targetUrl == null) {
@@ -53,7 +53,7 @@ public class TriggerHandler {
         
         HttpPost post = new HttpPost(targetUrl);
         post.setEntity(new StringEntity(message));
-        post.setHeader("authorization", "Bearer: " + jws);
+        post.setHeader("authorization", "Bearer " + jws);
 
         PostResult result;
         try {

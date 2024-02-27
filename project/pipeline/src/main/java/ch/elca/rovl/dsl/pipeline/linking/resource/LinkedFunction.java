@@ -21,6 +21,7 @@ public final class LinkedFunction extends LinkedResource {
     boolean requiresGlue;
     LinkedQueue inputQueue;
     boolean hasDatabaseOutput;
+    boolean hasFunctionOutput;
     boolean hasDatabaseOutputOnAWS;
 
     // TODO extend class?
@@ -35,6 +36,7 @@ public final class LinkedFunction extends LinkedResource {
         this.requiresGlue = false;
         this.hasDatabaseOutput = false;
         this.hasDatabaseOutputOnAWS = false;
+        this.hasFunctionOutput = false;
     }
 
     /**
@@ -48,6 +50,8 @@ public final class LinkedFunction extends LinkedResource {
             hasDatabaseOutput = true;
             if (r.getProvider() == Provider.AWS)
                 hasDatabaseOutputOnAWS = true;
+        } else if (r instanceof LinkedFunction) {
+            hasFunctionOutput = true;
         }
     }
 
@@ -77,6 +81,10 @@ public final class LinkedFunction extends LinkedResource {
 
     public boolean hasDatabaseOutput() {
         return hasDatabaseOutput;
+    }
+
+    public boolean hasFunctionOutput() {
+        return hasFunctionOutput;
     }
 
     public boolean hasDatabaseOutputOnAWS() {
@@ -121,8 +129,8 @@ public final class LinkedFunction extends LinkedResource {
 
     @Override
     public String toString() {
-        return String.format("LinkedFunction[name=%s, provider=%s, trigger=%s, requires-glue=%s]",
-                dslResource.getName(), provider, triggerType, requiresGlue);
+        return String.format("LinkedFunction[name=%s, provider=%s, trigger=%s]",
+                dslResource.getName(), provider, triggerType);
     }
 
 }
