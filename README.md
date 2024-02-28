@@ -2,7 +2,8 @@
 
 Repository for the Master thesis "Abstracting Proprietary Serverless Cloud Building Blocks for Easier Development and Compliance".
 
-It includes the implementation of the proposed solution, plus some examples and templates.
+It includes the implementation of the proposed solution, plus some examples and templates. Each directory contains README files to further explain their content. 
+
 
 ## How to use the proposed solution
 
