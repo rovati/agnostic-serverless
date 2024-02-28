@@ -1,4 +1,4 @@
-package org.acme.layout;
+package org.acme;
 
 import ch.elca.rovl.dsl.PlatformResourcesDefinition;
 import ch.elca.rovl.dsl.api.function.models.FunctionRuntime;
@@ -15,9 +15,10 @@ public class MyAppResources extends PlatformResourcesDefinition {
     @Override
     public void define() {
         // define configuration for the function: make it triggerable by http post
-        function("hello-world-fn")
+        function("helloworldfn")
             .pathToProject("../functions/")
             .runtime(FunctionRuntime.java(JavaVersion.V_17))
+            .handler("org.acme.FunctionRoute")
             .rest(FunctionHttpTrigger.builder()
                 .withAuthorization(AuthorizationType.PUBLIC)
                 .withHttpMethods(HttpMethod.POST)

@@ -68,12 +68,12 @@
         <dependency>
             <groupId>ch.elca.rovl.agnostic-serverless</groupId>
             <artifactId>camel-queue</artifactId>
-            <version>1.2.0</version>
+            <version>1.1.0</version>
         </dependency>
         <dependency>
             <groupId>ch.elca.rovl.agnostic-serverless</groupId>
             <artifactId>camel-database</artifactId>
-            <version>1.2.0</version>
+            <version>1.1.0</version>
         </dependency>
         <!-- camel postgres db -->
         <dependency>

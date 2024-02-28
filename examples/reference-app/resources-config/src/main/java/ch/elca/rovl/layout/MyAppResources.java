@@ -20,8 +20,9 @@ public class MyAppResources extends PlatformResourcesDefinition {
         function("postvote")
             .pathToProject("../functions/")
             .runtime(FunctionRuntime.java(JavaVersion.V_17))
+            .handler("ch.elca.rovl.FunctionRoute")
             .rest(FunctionHttpTrigger.builder()
-                .withAuthenticationMethod(AuthorizationType.PUBLIC)
+                .withAuthorization(AuthorizationType.PUBLIC)
                 .withHttpMethods(HttpMethod.POST)
                 .build());
 
@@ -29,7 +30,8 @@ public class MyAppResources extends PlatformResourcesDefinition {
 
         function("countupdate")
             .pathToProject("../functions/")
-            .runtime(FunctionRuntime.java(JavaVersion.V_17));
+            .runtime(FunctionRuntime.java(JavaVersion.V_17))
+            .handler("ch.elca.rovl.FunctionRoute");
 
         database("votesdb")
             .engine(DatabaseEngine.POSTRGESQL)
@@ -40,18 +42,20 @@ public class MyAppResources extends PlatformResourcesDefinition {
         function("getvotes")
             .pathToProject("../functions/")
             .runtime(FunctionRuntime.java(JavaVersion.V_17))
+        .handler("ch.elca.rovl.FunctionRoute")
             .rest(FunctionHttpTrigger.builder()
-                .withAuthenticationMethod(AuthorizationType.PUBLIC)
+                .withAuthorization(AuthorizationType.PUBLIC)
                 .withHttpMethods(HttpMethod.GET)
                 .build());
 
         function("initdb")
-                .pathToProject("../functions/")
-                .runtime(FunctionRuntime.java(JavaVersion.V_17))
-                .rest(FunctionHttpTrigger.builder()
-                    .withAuthenticationMethod(AuthorizationType.PUBLIC)
-                    .withHttpMethods(HttpMethod.POST)
-                    .build());
+            .pathToProject("../functions/")
+            .runtime(FunctionRuntime.java(JavaVersion.V_17))
+            .handler("ch.elca.rovl.FunctionRoute")
+            .rest(FunctionHttpTrigger.builder()
+                .withAuthorization(AuthorizationType.PUBLIC)
+                .withHttpMethods(HttpMethod.POST)
+                .build());
             
     }
     

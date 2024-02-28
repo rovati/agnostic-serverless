@@ -25,7 +25,16 @@ public static void main( String[] args )
 }
 ```
 
-where `MyAppResources` has to be changed to the name of the class extending the `PlatformResourcesDefinition` class to define and configure resources. Moreover, the project has to contain a `providers.properties` files in the root directory of the project. In this file the developer has to specify the platform each app resource has to be deployed to.
+where `MyAppResources` has to be changed to the name of the class extending the `PlatformResourcesDefinition` class to define and configure resources. Moreover, the project has to contain a `providers.properties` files in the root directory of the project. In this file the developer has to specify the platform each app resource has to be deployed to. Entries in this file have to follow this schema:
+
+| Config entry | Description |
+| ------------ | ----------- |
+| default=\<platform> | Specifies that every resource without an explicitly assigned platform should be deploy to this platform |
+| \<resource-name>=\<platform> | Specifies that this resource should be deployed to this platform |
+
+The `default` key can be used multiple time, but only the last occurrence will be considered. The `<resource-name>` overrides the `default` key for that specific resource only.
+
+Possible values for `<platform>` are : `aws` and `azure`.
 
 The pipeline can then be run in three different modes:
 

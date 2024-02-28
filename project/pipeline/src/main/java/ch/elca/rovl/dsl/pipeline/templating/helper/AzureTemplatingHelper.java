@@ -306,6 +306,10 @@ public final class AzureTemplatingHelper implements TemplatingHelper {
      * @throws IOException
      */
     private void writeHandler(LinkedFunction function, String handlerPath) throws IOException {
+        // create dir
+        File handlerFile = new File(handlerPath);
+        FileUtils.forceMkdirParent(handlerFile);
+
         FileWriter fileWriter = new FileWriter(handlerPath);
         Template t;
 

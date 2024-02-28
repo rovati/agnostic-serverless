@@ -21,3 +21,5 @@ The [providers.properties](https://github.com/rovati/agnostic-serverless/blob/ma
 | \<resource-name>=\<platform> | Specifies that this resource should be deployed to this platform |
 
 The `default` key can be used multiple time, but only the last occurrence will be considered. The `<resource-name>` overrides the `default` key for that specific resource only.
+
+Possible values for `<platform>` are : `aws` and `azure`.

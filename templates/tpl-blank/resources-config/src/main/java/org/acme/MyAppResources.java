@@ -1,4 +1,4 @@
-package org.acme.layout;
+package org.acme;
 
 import ch.elca.rovl.dsl.PlatformResourcesDefinition;
 
@@ -15,7 +15,8 @@ public class MyAppResources extends PlatformResourcesDefinition {
         
         function("blank-fn")
             .pathToProject("../functions/")
-            .runtime(FunctionRuntime.java(JavaVersion.V_17));
+            .runtime(FunctionRuntime.java(JavaVersion.V_17))
+            .handler(org.acme.FunctionRoute);
 
         queue("my-queue");
 

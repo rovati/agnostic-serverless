@@ -322,7 +322,11 @@ public class AwsTemplatingHelper implements TemplatingHelper {
      * @throws IOException
      */
     private void writeHandler(LinkedFunction function, String codePath) throws IOException {
-        FileWriter fileWriter = new FileWriter(codePath + TemplatingConstants.HANDLER_NAME);
+        // create dir
+        File handlerFile = new File(codePath + TemplatingConstants.HANDLER_NAME);
+        FileUtils.forceMkdirParent(handlerFile);
+
+        FileWriter fileWriter = new FileWriter(handlerFile);
         Template t;
 
         if (function.requiresGlue()) {

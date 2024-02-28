@@ -30,7 +30,7 @@ Developing a sevrerless application using the proposed solution consists of two 
 
 Resources configuration is carried out through the proposed fluent API. A configuration project must include a class extending `PlatformResourcesDefinition` and a main class to run the pipeline. Platform choices are indicated with a mandatory `providers.properties` file in the root directory of the configuration project.
 
-Functions are implemented using the [Apache Camel Java DSL](https://camel.apache.org/manual/java-dsl.html) and the [proposed abstract building block Camel components](https://github.com/rovati/agnostic-serverless/tree/main/project/apache-components) to integrate app resources. Each function project must contain a class extending a `RouteBuilder`.
+Functions are implemented using the [Apache Camel Java DSL](https://camel.apache.org/manual/java-dsl.html) and the [proposed abstract building block Camel components](https://github.com/rovati/agnostic-serverless/tree/main/project/apache-components) to integrate app resources. Each function project must contain a class extending a `RouteBuilder`. **NOTE** the root directory of the function project must have the same name as the correpsonding function resource name in the configuration project.
 
 
 ### Deploying an application
