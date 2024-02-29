@@ -1,6 +1,6 @@
 # database
 
-This cusotm Camel component offers a platform-agnostic interface to interact with relational databases (currently supports only PostgreSQL 13 as engine).
+This custom Camel component offers a platform-agnostic interface to interact with relational databases (currently supports only PostgreSQL 13 as engine).
 
 Its implementation merely acts as a proxy for `camel-jdbc` components. The latter is used to interact with the databases.
 
@@ -14,7 +14,7 @@ Install the component in the local Maven repository by running `mvn install` in 
 <dependency>
     <groupId>ch.elca.rovl.agnostic-serverless</groupId>
     <artifactId>camel-database</artifactId>
-    <version>1.2.0</version>
+    <version>1.1.0</version>
 </dependency>
 ```
 
@@ -22,4 +22,4 @@ You can then use database endpoints in Camel route configurations using the foll
 
 `database:databaseName`
 
-The component provides only producer endpoints.
+The component provides only producer endpoints. It supports the same configuration as the `camel-jdbc` component.
