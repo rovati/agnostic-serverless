@@ -37,6 +37,7 @@ public final class SystemRegistry {
             throw new IllegalArgumentException("Resource name already used: " + functionName);
         } else {
             names.add(functionName);
+            functionBuilders.put(functionName, builder);
         }
     }
 
@@ -52,6 +53,7 @@ public final class SystemRegistry {
             throw new IllegalArgumentException("Resource name already used: " + queueName);
         } else {
             names.add(queueName);
+            queueBuilders.put(queueName, builder);
         }
     }
 
@@ -67,6 +69,7 @@ public final class SystemRegistry {
             throw new IllegalArgumentException("Resource name already used: " + databaseName);
         } else {
             names.add(databaseName);
+            databaseBuilders.put(databaseName, builder);
         }
     }
 
@@ -92,6 +95,7 @@ public final class SystemRegistry {
 
     /**
      * Gets all registered builders.
+     * 
      * @return map {resource_name -> builder} of all registered builders
      */
     public Map<String, FluentDatabaseBuilder> getDatabaseBuilders() {
